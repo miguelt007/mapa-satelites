@@ -109,16 +109,19 @@ const satList = document.getElementById('satList');
 let trajectoriesVisible = true;
 
 // Ícones
+<script>
+// Ícones corrigidos:
 const customIcons = {
   "ISS (ZARYA)": L.icon({
-    iconUrl: "https://upload.wikimedia.org/wikipedia/commons/3/3f/International_Space_Station.svg",
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/3214/3214334.png",
     iconSize: [30, 30]
   }),
   "default": L.icon({
-    iconUrl: "https://upload.wikimedia.org/wikipedia/commons/e/e3/Satellite_icon.svg",
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/3214/3214312.png",
     iconSize: [25, 25]
   })
 };
+</script>
 
 function getIcon(name) {
   return customIcons[name] || customIcons["default"];
