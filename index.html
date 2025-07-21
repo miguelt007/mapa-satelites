@@ -79,7 +79,6 @@
     <h2>🛰️ Satélites Visíveis</h2>
     <select id="mapStyleSelect">
       <option value="osm">🗺️ OpenStreetMap</option>
-      <option value="esri">🛰️ Satélite (ESRI)</option>
       <option value="dark">🌌 Carto Escuro</option>
       <option value="topo">🌿 Topográfico</option>
     </select>
@@ -105,31 +104,28 @@
     let map = L.map('map').setView([0, 0], 2);
     let tileLayer;
 
-    function setMapStyle(style) {
-      if (tileLayer) map.removeLayer(tileLayer);
-      switch (style) {
-        case "esri":
-          tileLayer = L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{x}/{y}", {
-            attribution: "&copy; ESRI"
-          });
-          break;
-        case "dark":
-          tileLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-            attribution: "&copy; CartoDB"
-          });
-          break;
-        case "topo":
-          tileLayer = L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
-            attribution: "&copy; OpenTopoMap"
-          });
-          break;
-        default:
-          tileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            attribution: "&copy; OpenStreetMap contributors"
-          });
-      }
-      tileLayer.addTo(map);
-    }
+   function setMapStyle(style) {
+  if (tileLayer) map.removeLayer(tileLayer);
+
+  switch (style) {
+    case "dark":
+      tileLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+        attribution: "&copy; CartoDB"
+      });
+      break;
+    case "topo":
+      tileLayer = L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenTopoMap"
+      });
+      break;
+    default:
+      tileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "&copy; OpenStreetMap contributors"
+      });
+  }
+
+  tileLayer.addTo(map);
+}
 
     document.getElementById("mapStyleSelect").addEventListener("change", (e) => {
       setMapStyle(e.target.value);
@@ -146,28 +142,27 @@
     const sourceSelect = document.getElementById('sourceSelect');
 
     const customIcons = {
-      Comunicacao: L.icon({
-        iconUrl: "https://cdn.icon-icons.com/icons2/1380/PNG/512/satellitecommunication_94504.png",
-        iconSize: [22, 22]
-      }),
-      Meteorologico: L.icon({
-        iconUrl: "https://cdn-icons-png.flaticon.com/512/1086/1086741.png",
-        iconSize: [22, 22]
-      }),
-      Estacao: L.icon({
-        iconUrl: "https://upload.wikimedia.org/wikipedia/commons/8/80/ISS_Icon.svg",
-        iconSize: [26, 26]
-      }),
-      Militar: L.icon({
-        iconUrl: "https://cdn-icons-png.flaticon.com/512/7211/7211969.png",
-        iconSize: [22, 22]
-      }),
-      Generico: L.icon({
-        iconUrl: "https://cdn-icons-png.flaticon.com/512/9740/9740389.png",
-        iconSize: [22, 22]
-      })
-    };
-
+  Comunicacao: L.icon({
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/3137/3137981.png",
+    iconSize: [24, 24]
+  }),
+  Meteorologico: L.icon({
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/481/481431.png",
+    iconSize: [24, 24]
+  }),
+  Estacao: L.icon({
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/3208/3208752.png",
+    iconSize: [26, 26]
+  }),
+  Militar: L.icon({
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/424/424066.png",
+    iconSize: [24, 24]
+  }),
+  Generico: L.icon({
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/2942/2942499.png",
+    iconSize: [24, 24]
+  })
+};
     function getCategory(name) {
       const n = name.toUpperCase();
       if (n.includes("STARLINK") || n.includes("IRIDIUM")) return "Comunicacao";
@@ -189,13 +184,16 @@
     }
 
     function plotOrbit(name, satrec) {
-      const path = [];
-      for (let i = -45; i <= 45; i += 5) {
-        const pos = propagatePosition(satrec, i);
-        if (pos) path.push(pos);
-      }
-      orbitLines[name] = L.polyline(path, { color: 'cyan', weight: 1 }).addTo(map);
+  const path = [];
+  for (let i = -30; i <= 30; i += 2) {
+    const pos = propagatePosition(satrec, i);
+    if (pos) {
+      // Corrigir longitude para manter dentro de 0–360
+      path.push([pos[0], ((pos[1] + 360) % 360) - 180]);
     }
+  }
+  orbitLines[name] = L.polyline(path, { color: 'cyan', weight: 1 }).addTo(map);
+}
 
     function trackSatellite(name, line1, line2) {
       const satrec = satellite.twoline2satrec(line1, line2);
