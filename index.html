@@ -5,12 +5,6 @@
   <title>Mapa de Satélites</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
-  .category-title {
-  cursor: pointer;
-}
-.category-block.collapsed .sat-item {
-  display: none;
-}
   <style>
     html, body, #map { margin: 0; padding: 0; height: 100%; width: 100%; }
     body.dark { background-color: #000; color: #fff; font-family: sans-serif; }
@@ -30,7 +24,16 @@
     }
     .category-title {
       color: #0ff; font-weight: bold;
-      margin: 8px 0 4px;
+      margin: 8px 0 4px; cursor: pointer;
+    }
+    .category-title::before {
+      content: "▶"; margin-right: 6px;
+    }
+    .category-block:not(.collapsed) .category-title::before {
+      content: "▼";
+    }
+    .category-block.collapsed .sat-item {
+      display: none;
     }
     .sat-item {
       display: flex; justify-content: space-between; align-items: center;
@@ -39,7 +42,6 @@
     }
     .star { cursor: pointer; font-size: 18px; color: #888; }
     .star.favorito { color: gold; }
-    #map { z-index: 0; }
     #dataLabel {
       position: absolute; bottom: 10px; left: 10px;
       background: rgba(0,255,255,0.1); color: #0ff;
@@ -219,14 +221,12 @@ function trackSatellite(name, satrec, category, line1, line2) {
 
 function createCategorySection(category, items) {
   const block = document.createElement("div");
-  block.className = "category-block collapsed"; // inicia colapsado
+  block.className = "category-block collapsed";
 
   const title = document.createElement("div");
   title.className = "category-title";
-  title.textContent = `▶ ${category} (${items.length})`;
-  title.onclick = () => {
-    block.classList.toggle("collapsed");
-  };
+  title.textContent = `${category} (${items.length})`;
+  title.onclick = () => block.classList.toggle("collapsed");
   block.appendChild(title);
 
   let hasFavorito = false;
@@ -274,8 +274,7 @@ function createCategorySection(category, items) {
     block.appendChild(li);
   });
 
-  if (hasFavorito) block.classList.remove("collapsed"); // abrir se tiver favorito
-
+  if (hasFavorito) block.classList.remove("collapsed");
   return block;
 }
 
@@ -337,16 +336,17 @@ function loadSatellitesFrom(group) {
 
 function populateSatelliteList() {
   satList.innerHTML = "";
-  const categorizado = {};
+  const agrupado = {};
   for (const { name, line1, line2 } of tleData) {
     const categoria = getCategory(name);
     const satrec = satellite.twoline2satrec(line1, line2);
-    if (!categorizado[categoria]) categorizado[categoria] = [];
-    categorizado[categoria].push({ name, satrec, line1, line2 });
+    if (!agrupado[categoria]) agrupado[categoria] = [];
+    agrupado[categoria].push({ name, satrec, line1, line2 });
   }
-  for (const categoria in categorizado) {
-    satList.appendChild(createCategorySection(categoria, categorizado[categoria]));
-    categorizado[categoria].forEach(({ name, satrec, line1, line2 }) => {
+  for (const categoria in agrupado) {
+    const bloco = createCategorySection(categoria, agrupado[categoria]);
+    satList.appendChild(bloco);
+    agrupado[categoria].forEach(({ name, satrec, line1, line2 }) => {
       if (favoritos.includes(name)) {
         trackSatellite(name, satrec, categoria, line1, line2);
       }
