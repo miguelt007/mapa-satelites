@@ -127,7 +127,14 @@ function trackSatellite(name, tle1, tle2) {
 fetch("https://tle.ivanstanojevic.me/api/tle")
   .then(res => res.json())
   .then(data => {
-    const satArray = data.tle.slice(0, 15); // carregar os 15 primeiros
+    if (data && Array.isArray(data.tle)) {
+  const satArray = data.tle.slice(0, 15);
+  satArray.forEach(sat => {
+    trackSatellite(sat.name, sat.line1, sat.line2);
+  });
+} else {
+  console.error("Formato inesperado da API:", data);
+}
     satArray.forEach(sat => {
       trackSatellite(sat.name, sat.line1, sat.line2);
     });
