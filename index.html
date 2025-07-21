@@ -127,7 +127,7 @@ function trackSatellite(name, tle1, tle2) {
 fetch("https://tle.ivanstanojevic.me/api/tle")
   .then(res => res.json())
   .then(data => {
-    const satArray = data.slice(0, 15); // carregar os 15 primeiros
+    const satArray = data.tle.slice(0, 15); // carregar os 15 primeiros
     satArray.forEach(sat => {
       trackSatellite(sat.name, sat.line1, sat.line2);
     });
