@@ -92,7 +92,7 @@ function trackSatellite(name, tle1, tle2) {
 }
 
 document.getElementById("loadSatellites").addEventListener("click", () => {
-  fetch("http://celestrak.org/NORAD/elements/active.txt")
+  fetch("https://celestrak.org/NORAD/elements/active.txt")
     .then(res => res.text())
     .then(data => {
       const lines = data.trim().split("\n");
