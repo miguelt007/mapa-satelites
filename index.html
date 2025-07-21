@@ -176,7 +176,6 @@ function propagatePositionAt(satrec, time) {
 
 function generateOrbitSegments(satrec, baseTime) {
   const pastPath = [], futurePath = [];
-
   let lastLon = null;
 
   for (let i = -45; i <= 45; i += 2) {
@@ -186,12 +185,11 @@ function generateOrbitSegments(satrec, baseTime) {
       const [lat, lon] = pos.coord;
       const coord = [lat, lon];
 
-      // Verifica quebra de longitude (>180°)
+      // 🚫 Evita saltos visuais na trajetória ao cruzar ±180°
       if (lastLon !== null) {
         const diff = Math.abs(lon - lastLon);
         if (diff > 180) {
-          // insere ponto nulo para quebrar linha e evitar salto
-          (i < 0 ? pastPath : futurePath).push(null);
+          (i < 0 ? pastPath : futurePath).push(null); // quebra visual
         }
       }
       lastLon = lon;
@@ -199,6 +197,7 @@ function generateOrbitSegments(satrec, baseTime) {
       (i < 0 ? pastPath : futurePath).push(coord);
     }
   }
+
   return { pastPath, futurePath };
 }
 
@@ -398,6 +397,7 @@ function mostrarDiagnostico() {
     const pontos = generateOrbitSegments(sat.satrec, new Date());
     const allPoints = [...pontos.pastPath, ...pontos.futurePath];
     allPoints.forEach((coord, index) => {
+      if (!coord) return;
       const marcador = L.circleMarker(coord, {
         radius: 3, color: "yellow", fillOpacity: 0.5, weight: 1
       }).addTo(map);
@@ -410,6 +410,21 @@ function mostrarDiagnostico() {
 sourceSelect.addEventListener("change", () => loadSatellitesFrom(sourceSelect.value));
 searchInput.addEventListener("input", () => filterList(searchInput.value));
 loadSatellitesFrom("active");
+  function mostrarDiagnostico() {
+  for (let nome in satMarkers) {
+    const sat = satMarkers[nome];
+    const pontos = generateOrbitSegments(sat.satrec, new Date());
+    const allPoints = [...pontos.pastPath, ...pontos.futurePath];
+    allPoints.forEach((coord, index) => {
+      const marcador = L.circleMarker(coord, {
+        radius: 3, color: "yellow", fillOpacity: 0.5, weight: 1
+      }).addTo(map);
+      marcador.bindTooltip(`${nome} [${index}]`);
+      setTimeout(() => map.removeLayer(marcador), 6000);
+    });
+  }
+}
+
 </script>
 </body>
 </html>
