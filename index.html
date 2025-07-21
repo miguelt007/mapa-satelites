@@ -143,8 +143,7 @@ function getCategory(name) {
   return "Generico";
 }
 
-function propagatePosition(satrec, offsetMinutes = 0) {
-  const time = new Date(Date.now() + offsetMinutes * 60000);
+function propagatePositionAt(satrec, time) {
   const posVel = satellite.propagate(satrec, time);
   if (!posVel.position) return null;
   const gmst = satellite.gstime(time);
@@ -154,18 +153,15 @@ function propagatePosition(satrec, offsetMinutes = 0) {
   return (!isNaN(lat) && !isNaN(lon)) ? [lat, lon] : null;
 }
 
-function generateOrbitPath(satrec) {
-  const now = new Date();
+function generateOrbitPathAt(satrec, baseTime) {
   const path = [];
   for (let i = 0; i <= 30; i += 2) {
-    const time = new Date(now.getTime() + i * 60000);
-    const posVel = satellite.propagate(satrec, time);
-    if (!posVel.position) continue;
-    const gmst = satellite.gstime(time);
-    const gd = satellite.eciToGeodetic(posVel.position, gmst);
-    const lat = satellite.degreesLat(gd.latitude);
-    const lon = ((satellite.degreesLong(gd.longitude) + 360) % 360) - 180;
-    if (!isNaN(lat) && !isNaN(lon)) path.push([lat, lon]);
+    const time = new Date(baseTime.getTime() + i * 60000);
+    const pos = propagatePositionAt(satrec, time);
+    if (pos) {
+      const lonWrapped = ((pos[1] + 360) % 360) - 180;
+      path.push([pos[0], lonWrapped]);
+    }
   }
   return path;
 }
@@ -189,7 +185,9 @@ function formatDetails(name, line1, line2, lat, lon) {
 <script>
 function trackSatellite(name, satrec, category, line1, line2) {
   const icon = customIcons[category] || customIcons["Generico"];
-  const pos = propagatePosition(satrec, 0);
+  let baseTime = new Date(); // tempo comum
+
+  const pos = propagatePositionAt(satrec, baseTime);
   if (!pos) return;
 
   const lat = pos[0], lon = pos[1];
@@ -202,23 +200,24 @@ function trackSatellite(name, satrec, category, line1, line2) {
     permanent: true, direction: "right", offset: [10, 0], className: "satellite-label"
   }).setContent(name).setLatLng(pos).addTo(map);
 
-  const orbitPath = generateOrbitPath(satrec);
+  const orbitPath = generateOrbitPathAt(satrec, baseTime);
   const orbit = L.polyline(orbitPath, { color: "cyan", weight: 1 }).addTo(map);
 
   satMarkers[name] = { satrec, marker, tooltip, orbit };
 
   setInterval(() => {
-    const newPos = propagatePosition(satrec, 0);
+    baseTime = new Date(); // nova base
+    const newPos = propagatePositionAt(satrec, baseTime);
     if (newPos) {
       marker.setLatLng(newPos);
       marker.setPopupContent(formatDetails(name, line1, line2, newPos[0], newPos[1]));
       tooltip.setLatLng(newPos);
-      const updatedPath = generateOrbitPath(satrec);
-      satMarkers[name].orbit.setLatLngs(updatedPath);
+
+      const newPath = generateOrbitPathAt(satrec, baseTime);
+      orbit.setLatLngs(newPath);
     }
   }, 5000);
 }
-
 function createCategorySection(category, items) {
   const block = document.createElement("div");
   block.className = "category-block collapsed";
