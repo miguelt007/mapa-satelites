@@ -147,32 +147,30 @@ function propagatePositionAt(satrec, time) {
   const posVel = satellite.propagate(satrec, time);
   if (!posVel.position) return null;
 
-  const gmst = satellite.gstime(time);
+  const gmst = satellite.gstime(time); // tempo sideral sincronizado
   const gd = satellite.eciToGeodetic(posVel.position, gmst);
 
   const lat = satellite.degreesLat(gd.latitude);
   const lon = satellite.degreesLong(gd.longitude);
   return (!isNaN(lat) && !isNaN(lon)) ? [lat, lon] : null;
 }
+function generateOrbitSegments(satrec, baseTime) {
+  const pastPath = [];
+  const futurePath = [];
 
-function generateOrbitPathAt(satrec, baseTime) {
-  const path = [];
-  for (let i = -15; i <= 77; i += 2) {
+  for (let i = -45; i <= 45; i += 2) {
     const time = new Date(baseTime.getTime() + i * 60000);
-    const posVel = satellite.propagate(satrec, time);
-    if (!posVel.position) continue;
-
-    const gmst = satellite.gstime(time);
-    const gd = satellite.eciToGeodetic(posVel.position, gmst);
-    const lat = satellite.degreesLat(gd.latitude);
-    const lon = satellite.degreesLong(gd.longitude);
-    const lonWrapped = ((lon + 180) % 360) - 180;
-
-    if (!isNaN(lat) && !isNaN(lonWrapped)) {
-      path.push([lat, lonWrapped]);
+    const pos = propagatePositionAt(satrec, time);
+    if (pos) {
+      const lat = pos[0];
+      const lonWrapped = ((pos[1] + 180) % 360) - 180;
+      const coord = [lat, lonWrapped];
+      if (i < 0) pastPath.push(coord);
+      else futurePath.push(coord);
     }
   }
-  return path;
+
+  return { pastPath, futurePath };
 }
 function formatDetails(name, line1, line2, lat, lon) {
   const inclination = line2.substring(8, 16).trim();
@@ -193,7 +191,7 @@ function formatDetails(name, line1, line2, lat, lon) {
 <script>
 function trackSatellite(name, satrec, category, line1, line2) {
   const icon = customIcons[category] || customIcons["Generico"];
-  let baseTime = new Date(); // tempo absoluto
+  let baseTime = new Date(); // tempo absoluto sincronizado
 
   const pos = propagatePositionAt(satrec, baseTime);
   if (!pos) return;
@@ -208,21 +206,27 @@ function trackSatellite(name, satrec, category, line1, line2) {
     permanent: true, direction: "right", offset: [10, 0], className: "satellite-label"
   }).setContent(name).setLatLng(pos).addTo(map);
 
-  const orbitPath = generateOrbitPathAt(satrec, baseTime);
-  const orbit = L.polyline(orbitPath, { color: "cyan", weight: 1 }).addTo(map);
+  // gerar segmentos da órbita
+  const { pastPath, futurePath } = generateOrbitSegments(satrec, baseTime);
+  const orbitPast = L.polyline(pastPath, { color: "red", weight: 1 }).addTo(map);
+  const orbitFuture = L.polyline(futurePath, { color: "lime", weight: 1 }).addTo(map);
 
-  satMarkers[name] = { satrec, marker, tooltip, orbit };
+  satMarkers[name] = {
+    satrec, marker, tooltip,
+    orbitPast, orbitFuture
+  };
 
   setInterval(() => {
-    baseTime = new Date(); // novo tempo absoluto
+    baseTime = new Date(); // atualiza tempo
     const newPos = propagatePositionAt(satrec, baseTime);
     if (newPos) {
       marker.setLatLng(newPos);
       marker.setPopupContent(formatDetails(name, line1, line2, newPos[0], newPos[1]));
       tooltip.setLatLng(newPos);
 
-      const newPath = generateOrbitPathAt(satrec, baseTime);
-      orbit.setLatLngs(newPath);
+      const { pastPath, futurePath } = generateOrbitSegments(satrec, baseTime);
+      orbitPast.setLatLngs(pastPath);
+      orbitFuture.setLatLngs(futurePath);
     }
   }, 5000);
 }
