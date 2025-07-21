@@ -6,41 +6,88 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
-    html, body, #map { margin: 0; padding: 0; height: 100%; width: 100%; }
-
+    html, body, #map {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+    }
+    body.dark {
+      background-color: #000;
+      color: #fff;
+    }
     #sidebar {
       position: absolute;
       top: 0;
       left: 0;
-      width: 250px;
+      width: 280px;
       height: 100%;
-      background: #ffffffee;
+      background: rgba(0,0,0,0.85);
+      color: white;
       overflow-y: auto;
-      padding: 10px;
+      padding: 15px;
       z-index: 1000;
-      box-shadow: 2px 0 6px rgba(0,0,0,0.3);
+      box-shadow: 2px 0 8px rgba(0,255,255,0.2);
+      font-family: sans-serif;
     }
-
-    #sidebar h2 { margin-top: 0; }
-    #satList { list-style: none; padding-left: 0; }
+    #sidebar h2 {
+      margin-top: 0;
+      color: #0ff;
+    }
+    #controls {
+      margin-bottom: 15px;
+    }
+    #satList {
+      list-style: none;
+      padding-left: 0;
+    }
     #satList li {
       cursor: pointer;
       margin-bottom: 5px;
-      padding: 5px;
+      padding: 6px;
       border-radius: 5px;
+      background: rgba(255,255,255,0.1);
     }
-    #satList li:hover { background-color: #e0e0e0; }
+    #satList li:hover {
+      background-color: rgba(0,255,255,0.2);
+    }
+    .hidden { display: none; }
 
     @media (max-width: 600px) {
-      #sidebar { width: 100%; height: 180px; bottom: 0; top: auto; }
-      #map { height: calc(100% - 180px); }
+      #sidebar {
+        width: 100%;
+        height: 220px;
+        bottom: 0;
+        top: auto;
+      }
+      #map {
+        height: calc(100% - 220px);
+      }
+    }
+
+    button {
+      background-color: #0ff;
+      color: #000;
+      border: none;
+      padding: 5px 10px;
+      margin-right: 5px;
+      cursor: pointer;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    button:hover {
+      background-color: #0cc;
     }
   </style>
 </head>
-<body>
+<body class="dark">
 
 <div id="sidebar">
   <h2>Satélites Visíveis</h2>
+  <div id="controls">
+    <button onclick="toggleTrajectories()">Trajetórias</button>
+    <button onclick="toggleTheme()">Modo Claro/Escuro</button>
+  </div>
   <ul id="satList"></ul>
 </div>
 
@@ -51,16 +98,17 @@
 
 <script>
 const map = L.map('map').setView([0, 0], 2);
-
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors'
 }).addTo(map);
 
 const satMarkers = {};
+const orbitLines = {};
 const updateInterval = 5000;
 const satList = document.getElementById('satList');
+let trajectoriesVisible = true;
 
-// Ícones personalizados
+// Ícones
 const customIcons = {
   "ISS (ZARYA)": L.icon({
     iconUrl: "https://upload.wikimedia.org/wikipedia/commons/3/3f/International_Space_Station.svg",
@@ -76,6 +124,15 @@ function getIcon(name) {
   return customIcons[name] || customIcons["default"];
 }
 
+function getCategory(name) {
+  const n = name.toUpperCase();
+  if (n.includes("STARLINK") || n.includes("IRIDIUM")) return "Comunicação";
+  if (n.includes("NOAA") || n.includes("METEOR")) return "Meteorológico";
+  if (n.includes("ISS")) return "Estação Espacial";
+  if (n.includes("COSMOS") || n.includes("MIL")) return "Militar";
+  return "Genérico";
+}
+
 function propagatePosition(satrec, offsetMinutes = 0) {
   const time = new Date(Date.now() + offsetMinutes * 60000);
   const posVel = satellite.propagate(satrec, time);
@@ -88,13 +145,29 @@ function propagatePosition(satrec, offsetMinutes = 0) {
   return [lat, lon];
 }
 
-function plotOrbit(satrec) {
+function plotOrbit(name, satrec) {
   const path = [];
   for (let i = -45; i <= 45; i += 5) {
     const pos = propagatePosition(satrec, i);
     if (pos) path.push(pos);
   }
-  return L.polyline(path, { color: 'blue', weight: 1 }).addTo(map);
+  const line = L.polyline(path, { color: 'cyan', weight: 1 }).addTo(map);
+  orbitLines[name] = line;
+}
+
+function toggleTrajectories() {
+  trajectoriesVisible = !trajectoriesVisible;
+  Object.values(orbitLines).forEach(line => {
+    if (trajectoriesVisible) {
+      map.addLayer(line);
+    } else {
+      map.removeLayer(line);
+    }
+  });
+}
+
+function toggleTheme() {
+  document.body.classList.toggle("dark");
 }
 
 function trackSatellite(name, tle1, tle2) {
@@ -105,12 +178,13 @@ function trackSatellite(name, tle1, tle2) {
   const marker = L.marker(position, { icon: getIcon(name) }).addTo(map)
     .bindPopup(`${name}<br>Lat: ${position[0].toFixed(2)}<br>Lon: ${position[1].toFixed(2)}`);
 
-  plotOrbit(satrec);
+  plotOrbit(name, satrec);
 
   satMarkers[name] = { satrec, marker };
 
   const li = document.createElement("li");
-  li.textContent = name;
+  const categoria = getCategory(name);
+  li.textContent = `${name} [${categoria}]`;
   li.onclick = () => map.setView(marker.getLatLng(), 4);
   satList.appendChild(li);
 
@@ -123,21 +197,18 @@ function trackSatellite(name, tle1, tle2) {
   }, updateInterval);
 }
 
-// Fonte alternativa de TLEs que funciona com fetch()
+// Fonte alternativa com TLEs em JSON
 fetch("https://tle.ivanstanojevic.me/api/tle")
   .then(res => res.json())
   .then(data => {
     if (data && Array.isArray(data.tle)) {
-  const satArray = data.tle.slice(0, 15);
-  satArray.forEach(sat => {
-    trackSatellite(sat.name, sat.line1, sat.line2);
-  });
-} else {
-  console.error("Formato inesperado da API:", data);
-}
-    satArray.forEach(sat => {
-      trackSatellite(sat.name, sat.line1, sat.line2);
-    });
+      const satArray = data.tle.slice(0, 20);
+      satArray.forEach(sat => {
+        trackSatellite(sat.name, sat.line1, sat.line2);
+      });
+    } else {
+      console.error("Formato inesperado da API:", data);
+    }
   })
   .catch(err => console.error("Erro ao carregar TLEs:", err));
 </script>
