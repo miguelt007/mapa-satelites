@@ -142,44 +142,29 @@ document.getElementById("mapStyleSelect").addEventListener("change", (e) => {
 
 setMapStyle("osm");
 
-// 📍 Localização automática
-function localizarUsuario() {
-  if (!navigator.geolocation) {
-    console.warn("Geolocalização não suportada.");
-    return;
-  }
+const tuAqui = L.marker([lat, lon], {
+  icon: L.icon({
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/69/69524.png", // ícone de casa
+    iconSize: [28, 28]
+  })
+}).addTo(map);
+
+  function localizarUsuario() {
+  if (!navigator.geolocation) return;
 
   navigator.geolocation.getCurrentPosition((pos) => {
     const lat = pos.coords.latitude;
     const lon = pos.coords.longitude;
     map.setView([lat, lon], 4);
 
-    L.circleMarker([lat, lon], {
-      radius: 8,
-      color: "#0ff",
-      fillColor: "#0ff",
-      fillOpacity: 0.6
-    })
-    .addTo(map)
-    .bindPopup("📍 Estás aqui")
-    .openPopup();
-
-    L.tooltip({
-      permanent: true,
-      direction: 'bottom',
-      offset: [0, 10],
-      className: 'satellite-label'
-    })
-    .setContent("Tu estás aqui")
-    .setLatLng([lat, lon])
-    .addTo(map);
-
-  }, (err) => {
-    console.warn("Não foi possível obter localização:", err);
+    L.marker([lat, lon], {
+      icon: L.icon({
+        iconUrl: "https://cdn-icons-png.flaticon.com/512/69/69524.png",
+        iconSize: [28, 28]
+      })
+    }).addTo(map);
   });
 }
-
-localizarUsuario();
 
 // 🛰️ Ícones realistas Flaticon
 const customIcons = {
