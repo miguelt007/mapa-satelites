@@ -143,26 +143,27 @@
 
     const customIcons = {
   Comunicacao: L.icon({
-    iconUrl: "https://cdn-icons-png.flaticon.com/512/3137/3137981.png",
-    iconSize: [24, 24]
-  }),
-  Meteorologico: L.icon({
-    iconUrl: "https://cdn-icons-png.flaticon.com/512/481/481431.png",
-    iconSize: [24, 24]
-  }),
-  Estacao: L.icon({
-    iconUrl: "https://cdn-icons-png.flaticon.com/512/3208/3208752.png",
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/1062/1062195.png",
     iconSize: [26, 26]
   }),
+  Meteorologico: L.icon({
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/3566/3566814.png",
+    iconSize: [26, 26]
+  }),
+  Estacao: L.icon({
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/10290/10290311.png",
+    iconSize: [28, 28]
+  }),
   Militar: L.icon({
-    iconUrl: "https://cdn-icons-png.flaticon.com/512/424/424066.png",
-    iconSize: [24, 24]
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/1084/1084254.png",
+    iconSize: [26, 26]
   }),
   Generico: L.icon({
-    iconUrl: "https://cdn-icons-png.flaticon.com/512/2942/2942499.png",
-    iconSize: [24, 24]
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/1912/1912175.png",
+    iconSize: [26, 26]
   })
 };
+
     function getCategory(name) {
       const n = name.toUpperCase();
       if (n.includes("STARLINK") || n.includes("IRIDIUM")) return "Comunicacao";
