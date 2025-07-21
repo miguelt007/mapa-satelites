@@ -107,9 +107,9 @@ function toggleFavorito(name) {
 function getCategory(name) {
   const n = name.toUpperCase();
   if (n.includes("STARLINK") || n.includes("IRIDIUM")) return "Comunicacao";
-  if (n.includes("NOAA") || n.includes("METEOR")) return "Meteorologico";
-  if (n.includes("ISS") || n.includes("ZARYA")) return "Estacao";
-  if (n.includes("COSMOS") || n.includes("MIL")) return "Militar";
+  if (n.includes("NOAA") || n.includes("METEOR") || n.includes("GOES")) return "Meteorologico";
+  if (n.includes("ISS") || n.includes("TIANGONG") || n.includes("ZARYA")) return "Estacao";
+  if (n.includes("COSMOS") || n.includes("MIL") || n.includes("NAVSTAR")) return "Militar";
   return "Generico";
 }
 
@@ -125,14 +125,22 @@ function propagatePosition(satrec, offsetMinutes = 0) {
 }
 
 function generateOrbitPath(satrec) {
+  const now = new Date();
   const path = [];
-  for (let i = 0; i <= 30; i += 2) { // trajetória futura
-    const p = propagatePosition(satrec, i);
-    if (p) {
-      const lonWrapped = ((p[1] + 360) % 360) - 180;
-      path.push([p[0], lonWrapped]);
-    }
+
+  for (let i = 0; i <= 30; i += 2) {
+    const time = new Date(now.getTime() + i * 60000); // minutos futuros
+    const posVel = satellite.propagate(satrec, time);
+    if (!posVel.position) continue;
+
+    const gmst = satellite.gstime(time);
+    const gd = satellite.eciToGeodetic(posVel.position, gmst);
+    const lat = satellite.degreesLat(gd.latitude);
+    const lon = ((satellite.degreesLong(gd.longitude) + 360) % 360) - 180;
+
+    if (!isNaN(lat) && !isNaN(lon)) path.push([lat, lon]);
   }
+
   return path;
 }
 
