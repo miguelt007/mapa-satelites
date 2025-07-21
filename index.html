@@ -219,14 +219,25 @@ function trackSatellite(name, satrec, category, line1, line2) {
   satMarkers[name] = { satrec, marker, tooltip, orbit };
 
   setInterval(() => {
-    const newPos = propagatePosition(satrec);
-    if (newPos) {
-      marker.setLatLng(newPos);
-      marker.setPopupContent(formatDetails(name, line1, line2, newPos[0], newPos[1]));
-      tooltip.setLatLng(newPos);
+  const newPos = propagatePosition(satrec);
+  if (newPos) {
+    marker.setLatLng(newPos);
+    marker.setPopupContent(formatDetails(name, line1, line2, newPos[0], newPos[1]));
+    tooltip.setLatLng(newPos);
+
+    // Atualiza a trajetória orbital
+    const path = [];
+    for (let i = -30; i <= 30; i += 2) {
+      const p = propagatePosition(satrec, i);
+      if (p) path.push([p[0], ((p[1] + 360) % 360) - 180]);
     }
-  }, 5000);
-}
+    if (satMarkers[name].orbit) {
+      map.removeLayer(satMarkers[name].orbit);
+    }
+    const newOrbit = L.polyline(path, { color: "cyan", weight: 1 }).addTo(map);
+    satMarkers[name].orbit = newOrbit;
+  }
+}, 5000);
 
 function clearSatellites() {
   for (let name in satMarkers) {
