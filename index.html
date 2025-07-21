@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8" />
-  <title>Satélites Favoritos</title>
+  <title>Mapa de Satélites</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
@@ -52,6 +52,7 @@
       <option value="active">active</option>
       <option value="starlink">starlink</option>
       <option value="stations">stations</option>
+      <option value="weather">weather</option>
     </select>
     <div id="searchBox">
       <input type="text" id="searchInput" placeholder="🔍 Procurar satélite..." />
@@ -129,7 +130,7 @@ function generateOrbitPath(satrec) {
   const path = [];
 
   for (let i = 0; i <= 30; i += 2) {
-    const time = new Date(now.getTime() + i * 60000); // minutos futuros
+    const time = new Date(now.getTime() + i * 60000);
     const posVel = satellite.propagate(satrec, time);
     if (!posVel.position) continue;
 
@@ -163,8 +164,7 @@ function formatDetails(name, line1, line2, lat, lon) {
 <script>
 function trackSatellite(name, satrec, category, line1, line2) {
   const icon = customIcons[category];
-  const now = new Date();
-  const pos = propagatePosition(satrec, 0); // posição atual
+  const pos = propagatePosition(satrec, 0);
   if (!pos) return;
 
   const lat = pos[0], lon = pos[1];
@@ -177,28 +177,25 @@ function trackSatellite(name, satrec, category, line1, line2) {
     permanent: true, direction: "right", offset: [10, 0], className: "satellite-label"
   }).setContent(name).setLatLng(pos).addTo(map);
 
-  // Trajetória orbital baseada em tempo real
   const orbitPath = generateOrbitPath(satrec);
   const orbit = L.polyline(orbitPath, { color: "cyan", weight: 1 }).addTo(map);
 
   satMarkers[name] = { satrec, marker, tooltip, orbit };
 
-  // Atualização contínua
   setInterval(() => {
-    const currentPos = propagatePosition(satrec, 0);
-    if (currentPos) {
-      marker.setLatLng(currentPos);
-      marker.setPopupContent(formatDetails(name, line1, line2, currentPos[0], currentPos[1]));
-      tooltip.setLatLng(currentPos);
+    const newPos = propagatePosition(satrec, 0);
+    if (newPos) {
+      marker.setLatLng(newPos);
+      marker.setPopupContent(formatDetails(name, line1, line2, newPos[0], newPos[1]));
+      tooltip.setLatLng(newPos);
 
-      const newPath = generateOrbitPath(satrec);
+      const updatedPath = generateOrbitPath(satrec);
       if (satMarkers[name].orbit) {
-        satMarkers[name].orbit.setLatLngs(newPath);
+        satMarkers[name].orbit.setLatLngs(updatedPath);
       }
     }
   }, 5000);
 }
-
 
 function clearSearch() {
   searchInput.value = "";
