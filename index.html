@@ -140,9 +140,21 @@
     }
 
     function formatDetails(name, line1, line2, lat, lon) {
-      const satId = line1.substring(2, 7).trim();
-      return `<b>${name}</b><br> NORAD ID: ${satId}<br> Lat: ${lat.toFixed(2)}<br> Lon: ${lon.toFixed(2)}`;
-    }
+  const inclination = line2.substring(8, 16).trim();
+  const eccentricity = line2.substring(26, 33).trim();
+  const period = line2.substring(52, 63).trim();
+  const satId = line1.substring(2, 7).trim();
+
+  return `
+    <b>${name}</b><br>
+    NORAD ID: ${satId}<br>
+    Inclinação: ${inclination}°<br>
+    Excentricidade: ${eccentricity}<br>
+    Período orbital: ${period} min<br>
+    Latitude: ${lat.toFixed(2)}<br>
+    Longitude: ${lon.toFixed(2)}
+  `;
+}
 
     function trackSatellite(name, satrec, category, line1, line2) {
       const icon = customIcons[category];
@@ -155,7 +167,7 @@
       marker.getElement().style.transition = "opacity 1.2s ease";
       setTimeout(() => marker.setOpacity(1), 200);
 
-            const tooltip = L.tooltip({
+      const tooltip = L.tooltip({
         permanent: true,
         direction: "right",
         offset: [10, 0],
