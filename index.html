@@ -146,7 +146,7 @@ function trackSatellite(name, tle1, tle2) {
   }, updateInterval);
 }
 
-fetch("https://celestrak.org/NORAD/elements/active.txt")
+fetch("https://tle.ivanstanojevic.me/api/tle")
   .then(res => res.text())
   .then(data => {
     const lines = data.trim().split("\n");
