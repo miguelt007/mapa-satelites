@@ -134,7 +134,6 @@ function setMapStyle(style) {
 document.getElementById("mapStyleSelect").addEventListener("change", (e) => {
   setMapStyle(e.target.value);
 });
-
 setMapStyle("osm");
 
 const customIcons = {
@@ -228,7 +227,7 @@ function trackSatellite(name, line1, line2) {
   marker.getElement().style.transition = "opacity 1.2s ease";
   setTimeout(() => marker.setOpacity(1), 200);
 
-  L.tooltip({
+  const tooltip = L.tooltip({
     permanent: true,
     direction: 'right',
     offset: [10, 0],
@@ -236,7 +235,7 @@ function trackSatellite(name, line1, line2) {
   }).setContent(name).setLatLng(pos).addTo(map);
 
   plotOrbit(name, satrec);
-  satMarkers[name] = { satrec, marker, category };
+  satMarkers[name] = { satrec, marker, category, tooltip };
 
   const li = document.createElement("li");
   li.className = category;
@@ -259,9 +258,11 @@ function trackSatellite(name, line1, line2) {
     if (checkbox.checked) {
       if (!map.hasLayer(sat.marker)) map.addLayer(sat.marker);
       if (orbitLines[name] && !map.hasLayer(orbitLines[name])) map.addLayer(orbitLines[name]);
+      if (sat.tooltip && !map.hasLayer(sat.tooltip)) map.addLayer(sat.tooltip);
     } else {
       if (map.hasLayer(sat.marker)) map.removeLayer(sat.marker);
       if (orbitLines[name] && map.hasLayer(orbitLines[name])) map.removeLayer(orbitLines[name]);
+      if (sat.tooltip && map.hasLayer(sat.tooltip)) map.removeLayer(sat.tooltip);
     }
   };
 
@@ -287,6 +288,7 @@ function trackSatellite(name, line1, line2) {
     if (newPos) {
       marker.setLatLng(newPos);
       marker.setPopupContent(formatDetails(name, line1, line2, newPos[0], newPos[1]));
+      if (satMarkers[name].tooltip) satMarkers[name].tooltip.setLatLng(newPos);
     }
   }, 5000);
 }
@@ -310,8 +312,13 @@ function filterList(text) {
 searchInput.addEventListener("input", () => filterList(searchInput.value));
 
 function clearSatellites() {
-  for (let key in satMarkers) map.removeLayer(satMarkers[key].marker);
-  for (let key in orbitLines) map.removeLayer(orbitLines[key]);
+  for (let key in satMarkers) {
+    if (map.hasLayer(satMarkers[key].marker)) map.removeLayer(satMarkers[key].marker);
+    if (satMarkers[key].tooltip && map.hasLayer(satMarkers[key].tooltip)) map.removeLayer(satMarkers[key].tooltip);
+  }
+  for (let key in orbitLines) {
+    if (map.hasLayer(orbitLines[key])) map.removeLayer(orbitLines[key]);
+  }
   satMarkers = {};
   orbitLines = {};
   satList.innerHTML = "";
