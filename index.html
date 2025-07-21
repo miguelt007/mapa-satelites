@@ -67,6 +67,7 @@
     </div>
     <ul id="satList"></ul>
   </div>
+  <button onclick="mostrarDiagnostico()" style="width:100%; margin-top:10px;">🔎 Diagnóstico de trajetória</button>
   <div id="map"></div>
   <div id="dataLabel">Lista: active</div>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
@@ -311,6 +312,30 @@
     searchInput.addEventListener("input", () => filterList(searchInput.value));
     sourceSelect.addEventListener("change", () => loadSatellitesFrom(sourceSelect.value));
     loadSatellitesFrom("active");
+    function mostrarDiagnostico() {
+  for (let nome in satMarkers) {
+    const sat = satMarkers[nome];
+    const pontos = [];
+
+    for (let i = -30; i <= 30; i += 2) {
+      const p = propagatePosition(sat.satrec, i);
+      if (p) pontos.push([p[0], ((p[1] + 360) % 360) - 180]);
+    }
+
+    pontos.forEach((coord, index) => {
+      const marcador = L.circleMarker(coord, {
+        radius: 3,
+        color: "yellow",
+        fillOpacity: 0.5,
+        weight: 1
+      }).addTo(map);
+
+      marcador.bindTooltip(`${nome} [${index}]`, { permanent: false });
+
+      setTimeout(() => map.removeLayer(marcador), 6000); // remover após 6s
+    });
+  }
+}
   </script>
 </body>
 </html>
