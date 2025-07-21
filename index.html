@@ -176,11 +176,27 @@ function propagatePositionAt(satrec, time) {
 
 function generateOrbitSegments(satrec, baseTime) {
   const pastPath = [], futurePath = [];
+
+  let lastLon = null;
+
   for (let i = -45; i <= 45; i += 2) {
     const time = new Date(baseTime.getTime() + i * 60000);
     const pos = propagatePositionAt(satrec, time);
     if (pos) {
-      (i < 0 ? pastPath : futurePath).push(pos.coord);
+      const [lat, lon] = pos.coord;
+      const coord = [lat, lon];
+
+      // Verifica quebra de longitude (>180°)
+      if (lastLon !== null) {
+        const diff = Math.abs(lon - lastLon);
+        if (diff > 180) {
+          // insere ponto nulo para quebrar linha e evitar salto
+          (i < 0 ? pastPath : futurePath).push(null);
+        }
+      }
+      lastLon = lon;
+
+      (i < 0 ? pastPath : futurePath).push(coord);
     }
   }
   return { pastPath, futurePath };
