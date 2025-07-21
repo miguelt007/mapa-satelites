@@ -146,8 +146,10 @@ function getCategory(name) {
 function propagatePositionAt(satrec, time) {
   const posVel = satellite.propagate(satrec, time);
   if (!posVel.position) return null;
+
   const gmst = satellite.gstime(time);
   const gd = satellite.eciToGeodetic(posVel.position, gmst);
+
   const lat = satellite.degreesLat(gd.latitude);
   const lon = satellite.degreesLong(gd.longitude);
   return (!isNaN(lat) && !isNaN(lon)) ? [lat, lon] : null;
@@ -156,16 +158,16 @@ function propagatePositionAt(satrec, time) {
 function generateOrbitPathAt(satrec, baseTime) {
   const path = [];
   for (let i = 0; i <= 30; i += 2) {
-    const time = new Date(baseTime.getTime() + i * 60000);
+    const time = new Date(baseTime.getTime() + i * 60000); // minutos à frente
     const pos = propagatePositionAt(satrec, time);
     if (pos) {
-      const lonWrapped = ((pos[1] + 360) % 360) - 180;
-      path.push([pos[0], lonWrapped]);
+      const lat = pos[0];
+      const lonWrapped = ((pos[1] + 360) % 360) - 180; // longitude corrigida
+      path.push([lat, lonWrapped]);
     }
   }
   return path;
 }
-
 function formatDetails(name, line1, line2, lat, lon) {
   const inclination = line2.substring(8, 16).trim();
   const eccentricity = line2.substring(26, 33).trim();
@@ -185,7 +187,7 @@ function formatDetails(name, line1, line2, lat, lon) {
 <script>
 function trackSatellite(name, satrec, category, line1, line2) {
   const icon = customIcons[category] || customIcons["Generico"];
-  let baseTime = new Date(); // tempo comum
+  let baseTime = new Date(); // tempo absoluto
 
   const pos = propagatePositionAt(satrec, baseTime);
   if (!pos) return;
@@ -206,7 +208,7 @@ function trackSatellite(name, satrec, category, line1, line2) {
   satMarkers[name] = { satrec, marker, tooltip, orbit };
 
   setInterval(() => {
-    baseTime = new Date(); // nova base
+    baseTime = new Date(); // novo tempo absoluto
     const newPos = propagatePositionAt(satrec, baseTime);
     if (newPos) {
       marker.setLatLng(newPos);
