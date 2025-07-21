@@ -167,56 +167,57 @@
     }
 
     function trackSatellite(name, satrec, category, line1, line2) {
-      const icon = customIcons[category];
-            const pos = propagatePosition(satrec);
-      if (!pos) return;
+  const icon = customIcons[category];
+  const pos = propagatePosition(satrec);
+  if (!pos) return;
 
-      const lat = pos[0], lon = pos[1];
-      const marker = L.marker(pos, { icon: icon, opacity: 0 }).addTo(map)
-        .bindPopup(formatDetails(name, line1, line2, lat, lon));
-      marker.getElement().style.transition = "opacity 1.2s ease";
-      setTimeout(() => marker.setOpacity(1), 200);
+  const lat = pos[0], lon = pos[1];
 
-      const tooltip = L.tooltip({
-        permanent: true,
-        direction: "right",
-        offset: [10, 0],
-        className: "satellite-label"
-      }).setContent(name).setLatLng(pos).addTo(map);
+  const marker = L.marker(pos, { icon: icon, opacity: 0 }).addTo(map)
+    .bindPopup(formatDetails(name, line1, line2, lat, lon));
+  marker.getElement().style.transition = "opacity 1.2s ease";
+  setTimeout(() => marker.setOpacity(1), 200);
 
-      const path = [];
+  const tooltip = L.tooltip({
+    permanent: true,
+    direction: "right",
+    offset: [10, 0],
+    className: "satellite-label"
+  }).setContent(name).setLatLng(pos).addTo(map);
+
+  // Trajetória inicial
+  const path = [];
+  for (let i = -30; i <= 30; i += 2) {
+    const p = propagatePosition(satrec, i);
+    if (p) path.push([p[0], ((p[1] + 360) % 360) - 180]);
+  }
+  const orbit = L.polyline(path, { color: "cyan", weight: 1 }).addTo(map);
+
+  satMarkers[name] = { satrec, marker, tooltip, orbit };
+
+  // Atualização contínua
+  setInterval(() => {
+    const newPos = propagatePosition(satrec);
+    if (newPos) {
+      marker.setLatLng(newPos);
+      marker.setPopupContent(formatDetails(name, line1, line2, newPos[0], newPos[1]));
+      tooltip.setLatLng(newPos);
+
+      // Nova trajetória
+      const newPath = [];
       for (let i = -30; i <= 30; i += 2) {
         const p = propagatePosition(satrec, i);
-        if (p) path.push([p[0], ((p[1] + 360) % 360) - 180]);
+        if (p) newPath.push([p[0], ((p[1] + 360) % 360) - 180]);
       }
-      const orbit = L.polyline(path, { color: "cyan", weight: 1 }).addTo(map);
 
-      satMarkers[name] = { satrec, marker, tooltip, orbit };
-
-      setInterval(() => {
-  const newPos = propagatePosition(satrec);
-  if (newPos) {
-    marker.setLatLng(newPos);
-    marker.setPopupContent(formatDetails(name, line1, line2, newPos[0], newPos[1]));
-    tooltip.setLatLng(newPos);
-
-    // Atualiza trajetória orbital
-    const newPath = [];
-    for (let i = -30; i <= 30; i += 2) {
-      const p = propagatePosition(satrec, i);
-      if (p) newPath.push([p[0], ((p[1] + 360) % 360) - 180]);
+      // Atualiza a linha existente
+      if (satMarkers[name].orbit) {
+        satMarkers[name].orbit.setLatLngs(newPath);
+      }
     }
+  }, 5000);
+}
 
-    // Remove linha antiga se existir
-    if (satMarkers[name].orbit && map.hasLayer(satMarkers[name].orbit)) {
-      map.removeLayer(satMarkers[name].orbit);
-    }
-
-    // Cria nova linha e atualiza referência
-    const updatedOrbit = L.polyline(newPath, { color: "cyan", weight: 1 }).addTo(map);
-    satMarkers[name].orbit = updatedOrbit;
-  }
-}, 5000);
 
     function clearSearch() {
       searchInput.value = "";
