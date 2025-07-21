@@ -139,34 +139,8 @@ function setMapStyle(style) {
 document.getElementById("mapStyleSelect").addEventListener("change", (e) => {
   setMapStyle(e.target.value);
 });
-
 setMapStyle("osm");
 
-const tuAqui = L.marker([lat, lon], {
-  icon: L.icon({
-    iconUrl: "https://cdn-icons-png.flaticon.com/512/69/69524.png", // ícone de casa
-    iconSize: [28, 28]
-  })
-}).addTo(map);
-
-  function localizarUsuario() {
-  if (!navigator.geolocation) return;
-
-  navigator.geolocation.getCurrentPosition((pos) => {
-    const lat = pos.coords.latitude;
-    const lon = pos.coords.longitude;
-    map.setView([lat, lon], 4);
-
-    L.marker([lat, lon], {
-      icon: L.icon({
-        iconUrl: "https://cdn-icons-png.flaticon.com/512/69/69524.png",
-        iconSize: [28, 28]
-      })
-    }).addTo(map);
-  });
-}
-
-// 🛰️ Ícones realistas Flaticon
 const customIcons = {
   Comunicacao: L.icon({
     iconUrl: "https://cdn-icons-png.flaticon.com/512/1062/1062195.png",
@@ -189,10 +163,9 @@ const customIcons = {
     iconSize: [26, 26]
   })
 };
-const satList = document.getElementById('satList');
-const searchInput = document.getElementById('searchInput');
-const dataLabel = document.getElementById('dataLabel');
-const sourceSelect = document.getElementById('sourceSelect');
+
+let satMarkers = {};
+let orbitLines = {};
 
 function getCategory(name) {
   const n = name.toUpperCase();
@@ -218,7 +191,9 @@ function plotOrbit(name, satrec) {
   const path = [];
   for (let i = -30; i <= 30; i += 2) {
     const pos = propagatePosition(satrec, i);
-    if (pos) path.push([pos[0], ((pos[1] + 360) % 360) - 180]);
+    if (pos) {
+      path.push([pos[0], ((pos[1] + 360) % 360) - 180]);
+    }
   }
   orbitLines[name] = L.polyline(path, { color: 'cyan', weight: 1 }).addTo(map);
 }
@@ -239,6 +214,10 @@ function formatDetails(name, line1, line2, lat, lon) {
     Longitude: ${lon.toFixed(2)}
   `;
 }
+const satList = document.getElementById('satList');
+const searchInput = document.getElementById('searchInput');
+const dataLabel = document.getElementById('dataLabel');
+const sourceSelect = document.getElementById('sourceSelect');
 
 function trackSatellite(name, line1, line2) {
   const satrec = satellite.twoline2satrec(line1, line2);
@@ -260,7 +239,10 @@ function trackSatellite(name, line1, line2) {
     direction: 'right',
     offset: [10, 0],
     className: 'satellite-label'
-  }).setContent(name).setLatLng(pos).addTo(map);
+  })
+    .setContent(name)
+    .setLatLng(pos)
+    .addTo(map);
 
   plotOrbit(name, satrec);
   satMarkers[name] = { satrec, marker, category };
@@ -307,8 +289,12 @@ function filterList(text) {
 searchInput.addEventListener("input", () => filterList(searchInput.value));
 
 function clearSatellites() {
-  for (let key in satMarkers) map.removeLayer(satMarkers[key].marker);
-  for (let key in orbitLines) map.removeLayer(orbitLines[key]);
+  for (let key in satMarkers) {
+    map.removeLayer(satMarkers[key].marker);
+  }
+  for (let key in orbitLines) {
+    map.removeLayer(orbitLines[key]);
+  }
   satMarkers = {};
   orbitLines = {};
   satList.innerHTML = "";
