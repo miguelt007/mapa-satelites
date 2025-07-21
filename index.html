@@ -262,12 +262,15 @@ checkbox.type = "checkbox";
 checkbox.checked = true;
 checkbox.style.marginRight = "8px";
 checkbox.onchange = () => {
+  const sat = satMarkers[name];
+  if (!sat) return;
+
   if (checkbox.checked) {
-    map.addLayer(marker);
-    map.addLayer(orbitLines[name]);
+    map.addLayer(sat.marker);
+    if (orbitLines[name]) map.addLayer(orbitLines[name]);
   } else {
-    map.removeLayer(marker);
-    map.removeLayer(orbitLines[name]);
+    map.removeLayer(sat.marker);
+    if (orbitLines[name]) map.removeLayer(orbitLines[name]);
   }
 };
 
