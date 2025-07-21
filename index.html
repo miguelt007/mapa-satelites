@@ -2,17 +2,16 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8" />
-  <title>Satélites por Categoria</title>
+  <title>Satélites Favoritos</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
     html, body, #map { margin: 0; padding: 0; height: 100%; width: 100%; }
     body.dark { background-color: #000; color: #fff; font-family: sans-serif; }
     #sidebar {
-      position: absolute;
-      top: 0; left: 0; width: 280px; height: 100%;
+      position: absolute; top: 0; left: 0; width: 300px; height: 100%;
       background: rgba(0,0,0,0.85); padding: 15px; z-index: 1000;
-      overflow-y: auto; box-shadow: 2px 0 8px rgba(0,255,255,0.2);
+      overflow-y: auto;
     }
     #sidebar h2 { margin-top: 0; color: #0ff; }
     #mapStyleSelect, #sourceSelect, #searchInput {
@@ -28,28 +27,28 @@
     #satList li {
       margin-bottom: 5px; padding: 6px;
       border-radius: 5px; background: rgba(255,255,255,0.1);
-      transition: all 0.3s ease;
+      display: flex; justify-content: space-between; align-items: center;
     }
-    #satList li:hover {
-      background-color: rgba(0,255,255,0.2);
+    .star {
+      cursor: pointer; font-size: 18px; color: #888;
+    }
+    .star.favorito { color: gold; }
+    .satellite-label {
+      color: #0ff; background: rgba(0,0,0,0.6);
+      border-radius: 4px; padding: 2px 6px; font-size: 13px;
+      font-weight: bold; text-shadow: 0 0 2px #000;
     }
     #dataLabel {
       position: absolute; bottom: 10px; left: 10px;
       background: rgba(0,255,255,0.1); color: #0ff;
       padding: 6px 10px; border-radius: 5px;
-      font-size: 14px; z-index: 500;
-    }
-    .satellite-label {
-      color: #0ff; background: rgba(0,0,0,0.6);
-      border-radius: 4px; padding: 2px 6px;
-      font-size: 13px; font-weight: bold;
-      text-shadow: 0 0 2px #000;
+      font-size: 14px;
     }
   </style>
 </head>
 <body class="dark">
   <div id="sidebar">
-    <h2>🛰️ Satélites por Categoria</h2>
+    <h2>⭐ Satélites Favoritos</h2>
     <select id="mapStyleSelect">
       <option value="osm">🗺️ OpenStreetMap</option>
       <option value="dark">🌌 Carto Escuro</option>
@@ -79,56 +78,46 @@
 
     function setMapStyle(style) {
       if (tileLayer) map.removeLayer(tileLayer);
-      switch (style) {
-        case "dark":
-          tileLayer = L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-            attribution: "&copy; CartoDB"
-          }); break;
-        case "topo":
-          tileLayer = L.tileLayer("https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png", {
-            attribution: "&copy; OpenTopoMap"
-          }); break;
-        default:
-          tileLayer = L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            attribution: "&copy; OpenStreetMap contributors"
-          });
-      }
+      const urls = {
+        dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
+        topo: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+        osm: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+      };
+      tileLayer = L.tileLayer(urls[style], { attribution: "&copy; Contributors" });
       tileLayer.addTo(map);
     }
+
     document.getElementById("mapStyleSelect").addEventListener("change", e => {
       setMapStyle(e.target.value);
     });
 
     const customIcons = {
-      Comunicacao: L.icon({
-        iconUrl: "https://cdn-icons-png.flaticon.com/512/1062/1062195.png",
-        iconSize: [26, 26]
-      }),
-      Meteorologico: L.icon({
-        iconUrl: "https://cdn-icons-png.flaticon.com/512/3566/3566814.png",
-        iconSize: [26, 26]
-      }),
-      Estacao: L.icon({
-        iconUrl: "https://cdn-icons-png.flaticon.com/512/10290/10290311.png",
-        iconSize: [28, 28]
-      }),
-      Militar: L.icon({
-        iconUrl: "https://cdn-icons-png.flaticon.com/512/1084/1084254.png",
-        iconSize: [26, 26]
-      }),
-      Generico: L.icon({
-        iconUrl: "https://cdn-icons-png.flaticon.com/512/1912/1912175.png",
-        iconSize: [26, 26]
-      })
+      Comunicacao: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/1062/1062195.png", iconSize: [26, 26] }),
+      Meteorologico: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3566/3566814.png", iconSize: [26, 26] }),
+      Estacao: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/10290/10290311.png", iconSize: [28, 28] }),
+      Militar: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/1084/1084254.png", iconSize: [26, 26] }),
+      Generico: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/1912/1912175.png", iconSize: [26, 26] })
     };
 
     const satList = document.getElementById("satList");
     const searchInput = document.getElementById("searchInput");
-    const dataLabel = document.getElementById("dataLabel");
     const sourceSelect = document.getElementById("sourceSelect");
+    const dataLabel = document.getElementById("dataLabel");
 
     let satMarkers = {};
     let tleData = [];
+
+    let favoritos = JSON.parse(localStorage.getItem("favoritos") || "[]");
+
+    function toggleFavorito(name) {
+      if (favoritos.includes(name)) {
+        favoritos = favoritos.filter(f => f !== name);
+      } else {
+        favoritos.push(name);
+      }
+      localStorage.setItem("favoritos", JSON.stringify(favoritos));
+      populateSatelliteList(); // re-render
+    }
 
     function getCategory(name) {
       const n = name.toUpperCase();
@@ -151,73 +140,55 @@
     }
 
     function formatDetails(name, line1, line2, lat, lon) {
-      const inclination = line2.substring(8, 16).trim();
-      const ecc = line2.substring(26, 33).trim();
-      const period = line2.substring(52, 63).trim();
       const satId = line1.substring(2, 7).trim();
-      return `
-        <b>${name}</b><br>
-        NORAD ID: ${satId}<br>
-        Inclinação: ${inclination}°<br>
-        Excentricidade: ${ecc}<br>
-        Período orbital: ${period} min<br>
-        Latitude: ${lat.toFixed(2)}<br>
-        Longitude: ${lon.toFixed(2)}
-      `;
+      return `<b>${name}</b><br> NORAD ID: ${satId}<br> Lat: ${lat.toFixed(2)}<br> Lon: ${lon.toFixed(2)}`;
     }
 
     function trackSatellite(name, satrec, category, line1, line2) {
-  const icon = customIcons[category];
-  const pos = propagatePosition(satrec);
-  if (!pos) return;
+      const icon = customIcons[category];
+      const pos = propagatePosition(satrec);
+      if (!pos) return;
+      const lat = pos[0], lon = pos[1];
 
-  const lat = pos[0], lon = pos[1];
+      const marker = L.marker(pos, { icon, opacity: 0 }).addTo(map)
+        .bindPopup(formatDetails(name, line1, line2, lat, lon));
+      marker.getElement().style.transition = "opacity 1.2s ease";
+      setTimeout(() => marker.setOpacity(1), 200);
 
-  const marker = L.marker(pos, { icon: icon, opacity: 0 }).addTo(map)
-    .bindPopup(formatDetails(name, line1, line2, lat, lon));
-  marker.getElement().style.transition = "opacity 1.2s ease";
-  setTimeout(() => marker.setOpacity(1), 200);
+            const tooltip = L.tooltip({
+        permanent: true,
+        direction: "right",
+        offset: [10, 0],
+        className: "satellite-label"
+      }).setContent(name).setLatLng(pos).addTo(map);
 
-  const tooltip = L.tooltip({
-    permanent: true,
-    direction: "right",
-    offset: [10, 0],
-    className: "satellite-label"
-  }).setContent(name).setLatLng(pos).addTo(map);
-
-  // Trajetória inicial
-  const path = [];
-  for (let i = -30; i <= 30; i += 2) {
-    const p = propagatePosition(satrec, i);
-    if (p) path.push([p[0], ((p[1] + 360) % 360) - 180]);
-  }
-  const orbit = L.polyline(path, { color: "cyan", weight: 1 }).addTo(map);
-
-  satMarkers[name] = { satrec, marker, tooltip, orbit };
-
-  // Atualização contínua
-  setInterval(() => {
-    const newPos = propagatePosition(satrec);
-    if (newPos) {
-      marker.setLatLng(newPos);
-      marker.setPopupContent(formatDetails(name, line1, line2, newPos[0], newPos[1]));
-      tooltip.setLatLng(newPos);
-
-      // Nova trajetória
-      const newPath = [];
+      const path = [];
       for (let i = -30; i <= 30; i += 2) {
         const p = propagatePosition(satrec, i);
-        if (p) newPath.push([p[0], ((p[1] + 360) % 360) - 180]);
+        if (p) path.push([p[0], ((p[1] + 360) % 360) - 180]);
       }
+      const orbit = L.polyline(path, { color: "cyan", weight: 1 }).addTo(map);
 
-      // Atualiza a linha existente
-      if (satMarkers[name].orbit) {
-        satMarkers[name].orbit.setLatLngs(newPath);
-      }
+      satMarkers[name] = { satrec, marker, tooltip, orbit };
+
+      setInterval(() => {
+        const newPos = propagatePosition(satrec);
+        if (newPos) {
+          marker.setLatLng(newPos);
+          marker.setPopupContent(formatDetails(name, line1, line2, newPos[0], newPos[1]));
+          tooltip.setLatLng(newPos);
+
+          const updatedPath = [];
+          for (let i = -30; i <= 30; i += 2) {
+            const p = propagatePosition(satrec, i);
+            if (p) updatedPath.push([p[0], ((p[1] + 360) % 360) - 180]);
+          }
+          if (satMarkers[name].orbit) {
+            satMarkers[name].orbit.setLatLngs(updatedPath);
+          }
+        }
+      }, 5000);
     }
-  }, 5000);
-}
-
 
     function clearSearch() {
       searchInput.value = "";
@@ -235,8 +206,6 @@
       dataLabel.textContent = anyVisible ? "Lista: " + sourceSelect.value : "Nenhum satélite encontrado...";
     }
 
-    searchInput.addEventListener("input", () => filterList(searchInput.value));
-
     function clearSatellites() {
       for (let name in satMarkers) {
         const sat = satMarkers[name];
@@ -248,11 +217,10 @@
       satList.innerHTML = "";
     }
 
-    tleData = [];
-
     function loadSatellitesFrom(group) {
       const url = `https://celestrak.org/NORAD/elements/gp.php?GROUP=${group}&FORMAT=tle`;
       dataLabel.textContent = "🔄 A carregar satélites...";
+
       fetch(url)
         .then(res => res.text())
         .then(text => {
@@ -289,34 +257,47 @@
 
         const checkbox = document.createElement("input");
         checkbox.type = "checkbox";
-        checkbox.checked = false;
+        checkbox.checked = favoritos.includes(name);
         checkbox.style.marginRight = "8px";
         checkbox.onchange = () => {
           if (checkbox.checked) {
             trackSatellite(name, satrec, category, line1, line2);
-          } else if (satMarkers[name]) {
-            const sat = satMarkers[name];
-            map.removeLayer(sat.marker);
-            map.removeLayer(sat.tooltip);
-            map.removeLayer(sat.orbit);
-            delete satMarkers[name];
+            if (!favoritos.includes(name)) toggleFavorito(name);
+          } else {
+            if (satMarkers[name]) {
+              const sat = satMarkers[name];
+              map.removeLayer(sat.marker);
+              map.removeLayer(sat.tooltip);
+              map.removeLayer(sat.orbit);
+              delete satMarkers[name];
+            }
+            if (favoritos.includes(name)) toggleFavorito(name);
           }
         };
 
         const nameSpan = document.createElement("span");
         nameSpan.textContent = name;
 
+        const starBtn = document.createElement("span");
+        starBtn.className = "star" + (favoritos.includes(name) ? " favorito" : "");
+        starBtn.textContent = favoritos.includes(name) ? "★" : "☆";
+        starBtn.onclick = () => toggleFavorito(name);
+
         label.appendChild(checkbox);
         label.appendChild(nameSpan);
         li.appendChild(label);
+        li.appendChild(starBtn);
         satList.appendChild(li);
+
+        if (favoritos.includes(name)) {
+          checkbox.checked = true;
+          trackSatellite(name, satrec, category, line1, line2);
+        }
       }
     }
 
-    sourceSelect.addEventListener("change", () => {
-      loadSatellitesFrom(sourceSelect.value);
-    });
-
+    searchInput.addEventListener("input", () => filterList(searchInput.value));
+    sourceSelect.addEventListener("change", () => loadSatellitesFrom(sourceSelect.value));
     loadSatellitesFrom("active");
   </script>
 </body>
