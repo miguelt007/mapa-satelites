@@ -148,12 +148,28 @@ const dataLabel = document.getElementById('dataLabel');
 const sourceSelect = document.getElementById('sourceSelect');
 
 const customIcons = {
-  Comunicacao: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3214/3214319.png", iconSize: [25, 25] }),
-  Meteorologico: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3214/3214320.png", iconSize: [25, 25] }),
-  Militar:        L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3214/3214332.png", iconSize: [25, 25] }),
-  Estacao:        L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3214/3214334.png", iconSize: [30, 30] }),
-  Generico:       L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3214/3214312.png", iconSize: [25, 25] })
+  Comunicacao: L.icon({
+    iconUrl: "https://cdn.icon-icons.com/icons2/1380/PNG/512/satellitecommunication_94504.png",
+    iconSize: [22, 22]
+  }),
+  Meteorologico: L.icon({
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/1086/1086741.png",
+    iconSize: [22, 22]
+  }),
+  Estacao: L.icon({
+    iconUrl: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/ISS_Icon.svg/32px-ISS_Icon.svg.png",
+    iconSize: [26, 26]
+  }),
+  Militar: L.icon({
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/7211/7211969.png",
+    iconSize: [22, 22]
+  }),
+  Generico: L.icon({
+    iconUrl: "https://cdn-icons-png.flaticon.com/512/9740/9740389.png",
+    iconSize: [22, 22]
+  })
 };
+
 
 function getCategory(name) {
   const n = name.toUpperCase();
