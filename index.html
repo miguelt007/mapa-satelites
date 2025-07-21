@@ -19,14 +19,21 @@
     }
     #searchBox { display: flex; }
     #clearBtn { margin-left: 5px; cursor: pointer; color: #fff; border: none; }
-    #satList { list-style: none; padding-left: 0; }
-    #satList li {
+    .category-block {
+      margin-bottom: 16px;
+    }
+    .category-title {
+      color: #0ff; font-weight: bold;
+      margin: 8px 0 4px;
+    }
+    .sat-item {
       display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 6px; padding: 6px;
+      padding: 6px; margin-bottom: 4px;
       border-radius: 5px; background: rgba(255,255,255,0.1);
     }
     .star { cursor: pointer; font-size: 18px; color: #888; }
     .star.favorito { color: gold; }
+    #map { z-index: 0; }
     #dataLabel {
       position: absolute; bottom: 10px; left: 10px;
       background: rgba(0,255,255,0.1); color: #0ff;
@@ -42,32 +49,31 @@
 </head>
 <body class="dark">
   <div id="sidebar">
-    <h2>⭐ Satélites Favoritos</h2>
+    <h2>🛰️ Satélites por Categoria</h2>
     <select id="mapStyleSelect">
       <option value="osm">🗺️ OpenStreetMap</option>
       <option value="dark">🌌 Carto Escuro</option>
       <option value="topo">🌿 Topográfico</option>
     </select>
     <select id="sourceSelect">
-  <option value="active">🌍 Active</option>
-  <option value="stations">🏢 Stations</option>
-  <option value="starlink">🌐 Starlink</option>
-  <option value="weather">🌦️ Meteorológicos</option>
-  <option value="science">🧪 Científicos</option>
-  <option value="resource">🌎 Observação da Terra</option>
-  <option value="visual">👁️ Visíveis a olho nu</option>
-  <option value="gps-ops">🧭 GPS Operacionais</option>
-  <option value="glonass">🛰️ GLONASS</option>
-  <option value="galileo">🇪🇺 Galileo</option>
-  <option value="beidou">🇨🇳 Beidou</option>
-  <option value="military">🪖 Militares</option>
-  <option value="geostationary">🛰️ Geoestacionários</option>
-</select>
+      <option value="active">🌍 Active</option>
+      <option value="stations">🏢 Stations</option>
+      <option value="starlink">🌐 Starlink</option>
+      <option value="weather">🌦️ Meteorológicos</option>
+      <option value="science">🧪 Científicos</option>
+      <option value="resource">🌎 Observação da Terra</option>
+      <option value="gps-ops">🧭 GPS</option>
+      <option value="glonass">🛰️ GLONASS</option>
+      <option value="galileo">🇪🇺 Galileo</option>
+      <option value="beidou">🇨🇳 Beidou</option>
+      <option value="military">🪖 Militares</option>
+      <option value="geostationary">🛰️ Geoestacionários</option>
+    </select>
     <div id="searchBox">
       <input type="text" id="searchInput" placeholder="🔍 Procurar satélite..." />
       <button id="clearBtn" onclick="clearSearch()">✕</button>
     </div>
-    <ul id="satList"></ul>
+    <div id="satList"></div>
     <button onclick="mostrarDiagnostico()" style="width:100%; margin-top:10px;">🔎 Diagnóstico de trajetória</button>
   </div>
   <div id="map"></div>
@@ -82,9 +88,9 @@ const customIcons = {
   Meteorologico: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3566/3566814.png", iconSize: [26, 26] }),
   Estacao: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/10290/10290311.png", iconSize: [28, 28] }),
   Militar: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/1084/1084254.png", iconSize: [26, 26] }),
-  Navegacao: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/733/733684.png", iconSize: [26, 26] }), // GPS-style ícone
-  Cientifico: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/4388/4388674.png", iconSize: [26, 26] }), // Microscope/lab
-  Comercial: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/1171/1171434.png", iconSize: [26, 26] }), // Globo com antena
+  Navegacao: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/733/733684.png", iconSize: [26, 26] }),
+  Cientifico: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/4388/4388674.png", iconSize: [26, 26] }),
+  Comercial: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/1171/1171434.png", iconSize: [26, 26] }),
   Generico: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/1912/1912175.png", iconSize: [26, 26] })
 };
 
@@ -143,20 +149,16 @@ function propagatePosition(satrec, offsetMinutes = 0) {
 function generateOrbitPath(satrec) {
   const now = new Date();
   const path = [];
-
   for (let i = 0; i <= 30; i += 2) {
     const time = new Date(now.getTime() + i * 60000);
     const posVel = satellite.propagate(satrec, time);
     if (!posVel.position) continue;
-
     const gmst = satellite.gstime(time);
     const gd = satellite.eciToGeodetic(posVel.position, gmst);
     const lat = satellite.degreesLat(gd.latitude);
     const lon = ((satellite.degreesLong(gd.longitude) + 360) % 360) - 180;
-
     if (!isNaN(lat) && !isNaN(lon)) path.push([lat, lon]);
   }
-
   return path;
 }
 
@@ -178,7 +180,7 @@ function formatDetails(name, line1, line2, lat, lon) {
 </script>
 <script>
 function trackSatellite(name, satrec, category, line1, line2) {
-  const icon = customIcons[category];
+  const icon = customIcons[category] || customIcons["Generico"];
   const pos = propagatePosition(satrec, 0);
   if (!pos) return;
 
@@ -203,13 +205,63 @@ function trackSatellite(name, satrec, category, line1, line2) {
       marker.setLatLng(newPos);
       marker.setPopupContent(formatDetails(name, line1, line2, newPos[0], newPos[1]));
       tooltip.setLatLng(newPos);
-
       const updatedPath = generateOrbitPath(satrec);
-      if (satMarkers[name].orbit) {
-        satMarkers[name].orbit.setLatLngs(updatedPath);
-      }
+      satMarkers[name].orbit.setLatLngs(updatedPath);
     }
   }, 5000);
+}
+
+function createCategorySection(category, items) {
+  const block = document.createElement("div");
+  block.className = "category-block";
+
+  const title = document.createElement("div");
+  title.className = "category-title";
+  title.textContent = `▶ ${category} (${items.length})`;
+  block.appendChild(title);
+
+  items.forEach(({ name, satrec, line1, line2 }) => {
+    const li = document.createElement("div");
+    li.className = "sat-item";
+
+    const label = document.createElement("label");
+    label.style.display = "flex"; label.style.alignItems = "center";
+
+    const checkbox = document.createElement("input");
+    checkbox.type = "checkbox";
+    checkbox.checked = favoritos.includes(name);
+    checkbox.style.marginRight = "8px";
+    checkbox.onchange = () => {
+      if (checkbox.checked) {
+        trackSatellite(name, satrec, category, line1, line2);
+        if (!favoritos.includes(name)) toggleFavorito(name);
+      } else {
+        if (satMarkers[name]) {
+          map.removeLayer(satMarkers[name].marker);
+          map.removeLayer(satMarkers[name].tooltip);
+          map.removeLayer(satMarkers[name].orbit);
+          delete satMarkers[name];
+        }
+        if (favoritos.includes(name)) toggleFavorito(name);
+      }
+    };
+
+    const nameSpan = document.createElement("span");
+    nameSpan.textContent = name;
+
+    const starBtn = document.createElement("span");
+    starBtn.className = "star" + (favoritos.includes(name) ? " favorito" : "");
+    starBtn.textContent = favoritos.includes(name) ? "★" : "☆";
+    starBtn.onclick = () => toggleFavorito(name);
+
+    label.appendChild(checkbox);
+    label.appendChild(nameSpan);
+    li.appendChild(label);
+    li.appendChild(starBtn);
+    block.appendChild(li);
+  });
+
+  return block;
 }
 
 function clearSearch() {
@@ -218,13 +270,18 @@ function clearSearch() {
 }
 
 function filterList(text) {
-  const items = satList.getElementsByTagName("li");
+  const blocks = satList.querySelectorAll(".category-block");
   let anyVisible = false;
-  for (let item of items) {
-    const match = item.textContent.toLowerCase().includes(text.toLowerCase());
-    item.style.display = match ? "" : "none";
-    if (match) anyVisible = true;
-  }
+  blocks.forEach(block => {
+    let matches = 0;
+    block.querySelectorAll(".sat-item").forEach(item => {
+      const match = item.textContent.toLowerCase().includes(text.toLowerCase());
+      item.style.display = match ? "" : "none";
+      if (match) matches++;
+    });
+    block.style.display = matches > 0 ? "" : "none";
+    if (matches > 0) anyVisible = true;
+  });
   dataLabel.textContent = anyVisible ? "Lista: " + sourceSelect.value : "Nenhum satélite encontrado...";
 }
 
@@ -265,55 +322,20 @@ function loadSatellitesFrom(group) {
 
 function populateSatelliteList() {
   satList.innerHTML = "";
+  const categorizado = {};
   for (const { name, line1, line2 } of tleData) {
-    const category = getCategory(name);
+    const categoria = getCategory(name);
     const satrec = satellite.twoline2satrec(line1, line2);
-
-    const li = document.createElement("li");
-    li.className = category;
-
-    const label = document.createElement("label");
-    label.style.display = "flex";
-    label.style.alignItems = "center";
-
-    const checkbox = document.createElement("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = favoritos.includes(name);
-    checkbox.style.marginRight = "8px";
-    checkbox.onchange = () => {
-      if (checkbox.checked) {
-        trackSatellite(name, satrec, category, line1, line2);
-        if (!favoritos.includes(name)) toggleFavorito(name);
-      } else {
-        if (satMarkers[name]) {
-          const sat = satMarkers[name];
-          map.removeLayer(sat.marker);
-          map.removeLayer(sat.tooltip);
-          map.removeLayer(sat.orbit);
-          delete satMarkers[name];
-        }
-        if (favoritos.includes(name)) toggleFavorito(name);
+    if (!categorizado[categoria]) categorizado[categoria] = [];
+    categorizado[categoria].push({ name, satrec, line1, line2 });
+  }
+  for (const categoria in categorizado) {
+    satList.appendChild(createCategorySection(categoria, categorizado[categoria]));
+    categorizado[categoria].forEach(({ name, satrec, line1, line2 }) => {
+      if (favoritos.includes(name)) {
+        trackSatellite(name, satrec, categoria, line1, line2);
       }
-    };
-
-    const nameSpan = document.createElement("span");
-    nameSpan.textContent = name;
-
-    const starBtn = document.createElement("span");
-    starBtn.className = "star" + (favoritos.includes(name) ? " favorito" : "");
-    starBtn.textContent = favoritos.includes(name) ? "★" : "☆";
-    starBtn.onclick = () => toggleFavorito(name);
-
-    label.appendChild(checkbox);
-    label.appendChild(nameSpan);
-    li.appendChild(label);
-    li.appendChild(starBtn);
-    satList.appendChild(li);
-
-    if (favoritos.includes(name)) {
-      checkbox.checked = true;
-      trackSatellite(name, satrec, category, line1, line2);
-    }
+    });
   }
 }
 
