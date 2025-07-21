@@ -155,7 +155,8 @@ function formatDetails(name, line1, line2, lat, lon) {
 <script>
 function trackSatellite(name, satrec, category, line1, line2) {
   const icon = customIcons[category];
-  const pos = propagatePosition(satrec);
+  const now = new Date();
+  const pos = propagatePosition(satrec, 0); // posição atual
   if (!pos) return;
 
   const lat = pos[0], lon = pos[1];
@@ -168,23 +169,28 @@ function trackSatellite(name, satrec, category, line1, line2) {
     permanent: true, direction: "right", offset: [10, 0], className: "satellite-label"
   }).setContent(name).setLatLng(pos).addTo(map);
 
+  // Trajetória orbital baseada em tempo real
   const orbitPath = generateOrbitPath(satrec);
   const orbit = L.polyline(orbitPath, { color: "cyan", weight: 1 }).addTo(map);
 
   satMarkers[name] = { satrec, marker, tooltip, orbit };
 
+  // Atualização contínua
   setInterval(() => {
-    const newPos = propagatePosition(satrec);
-    if (newPos) {
-      marker.setLatLng(newPos);
-      marker.setPopupContent(formatDetails(name, line1, line2, newPos[0], newPos[1]));
-      tooltip.setLatLng(newPos);
+    const currentPos = propagatePosition(satrec, 0);
+    if (currentPos) {
+      marker.setLatLng(currentPos);
+      marker.setPopupContent(formatDetails(name, line1, line2, currentPos[0], currentPos[1]));
+      tooltip.setLatLng(currentPos);
 
-      const updatedPath = generateOrbitPath(satrec);
-      if (satMarkers[name].orbit) satMarkers[name].orbit.setLatLngs(updatedPath);
+      const newPath = generateOrbitPath(satrec);
+      if (satMarkers[name].orbit) {
+        satMarkers[name].orbit.setLatLngs(newPath);
+      }
     }
   }, 5000);
 }
+
 
 function clearSearch() {
   searchInput.value = "";
