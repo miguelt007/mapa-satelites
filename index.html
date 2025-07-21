@@ -69,11 +69,14 @@
 let map = L.map('map').setView([0, 0], 2);
 let tileLayer;
 const customIcons = {
-  Comunicacao: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/1062/1062195.png", iconSize: [26, 26] }),
-  Meteorologico: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3566/3566814.png", iconSize: [26, 26] }),
-  Estacao: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/10290/10290311.png", iconSize: [28, 28] }),
-  Militar: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/1084/1084254.png", iconSize: [26, 26] }),
-  Generico: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/1912/1912175.png", iconSize: [26, 26] })
+  Comunicacao: L.icon({ iconUrl: "...comunicacao.png", iconSize: [26, 26] }),
+  Meteorologico: L.icon({ iconUrl: "...meteorologico.png", iconSize: [26, 26] }),
+  Estacao: L.icon({ iconUrl: "...estacao.png", iconSize: [26, 26] }),
+  Militar: L.icon({ iconUrl: "...militar.png", iconSize: [26, 26] }),
+  Navegacao: L.icon({ iconUrl: "...gps.png", iconSize: [26, 26] }),
+  Cientifico: L.icon({ iconUrl: "...ciencia.png", iconSize: [26, 26] }),
+  Comercial: L.icon({ iconUrl: "...comercial.png", iconSize: [26, 26] }),
+  Generico: L.icon({ iconUrl: "...generico.png", iconSize: [26, 26] })
 };
 
 function setMapStyle(style) {
@@ -107,10 +110,13 @@ function toggleFavorito(name) {
 
 function getCategory(name) {
   const n = name.toUpperCase();
-  if (n.includes("STARLINK") || n.includes("IRIDIUM")) return "Comunicacao";
-  if (n.includes("NOAA") || n.includes("METEOR") || n.includes("GOES")) return "Meteorologico";
+  if (n.includes("STARLINK") || n.includes("IRIDIUM") || n.includes("ONEWEB") || n.includes("SKYNET")) return "Comunicacao";
+  if (n.includes("NOAA") || n.includes("METEOR") || n.includes("GOES") || n.includes("HIMAWARI") || n.includes("METEOSAT")) return "Meteorologico";
   if (n.includes("ISS") || n.includes("TIANGONG") || n.includes("ZARYA")) return "Estacao";
-  if (n.includes("COSMOS") || n.includes("MIL") || n.includes("NAVSTAR")) return "Militar";
+  if (n.includes("COSMOS") || n.includes("MIL") || n.includes("NAVSTAR") || n.includes("USA") || n.includes("NROL")) return "Militar";
+  if (n.includes("GPS") || n.includes("GLONASS") || n.includes("GALILEO") || n.includes("BEIDOU")) return "Navegacao";
+  if (n.includes("LANDSAT") || n.includes("SWARM") || n.includes("GRACE") || n.includes("ICESAT")) return "Cientifico";
+  if (n.includes("PLANET") || n.includes("MAXAR") || n.includes("WORLDVIEW")) return "Comercial";
   return "Generico";
 }
 
