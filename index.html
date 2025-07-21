@@ -248,22 +248,46 @@ function trackSatellite(name, line1, line2) {
   satMarkers[name] = { satrec, marker, category };
 
   const li = document.createElement("li");
-  li.textContent = name;
-  li.className = category;
-  li.style.opacity = "0";
-  li.style.transform = "translateY(-10px)";
-  li.style.transition = "all 0.4s ease";
-  setTimeout(() => {
-    li.style.opacity = "1";
-    li.style.transform = "translateY(0)";
-  }, 100);
-  li.onclick = () => {
-    marker.setOpacity(1);
-    marker.getElement().style.animation = "pulse 0.6s ease";
-    setTimeout(() => marker.getElement().style.animation = "", 600);
-    map.setView(marker.getLatLng(), 4);
-    marker.openPopup();
-  };
+li.className = category;
+li.style.opacity = "0";
+li.style.transform = "translateY(-10px)";
+li.style.transition = "all 0.4s ease";
+
+const label = document.createElement("label");
+label.style.display = "flex";
+label.style.alignItems = "center";
+
+const checkbox = document.createElement("input");
+checkbox.type = "checkbox";
+checkbox.checked = true;
+checkbox.style.marginRight = "8px";
+checkbox.onchange = () => {
+  if (checkbox.checked) {
+    map.addLayer(marker);
+    map.addLayer(orbitLines[name]);
+  } else {
+    map.removeLayer(marker);
+    map.removeLayer(orbitLines[name]);
+  }
+};
+
+const nameSpan = document.createElement("span");
+nameSpan.textContent = name;
+label.appendChild(checkbox);
+label.appendChild(nameSpan);
+li.appendChild(label);
+satList.appendChild(li);
+
+setTimeout(() => {
+  li.style.opacity = "1";
+  li.style.transform = "translateY(0)";
+}, 100);
+
+li.onclick = () => {
+  map.setView(marker.getLatLng(), 4);
+  marker.openPopup();
+};
+
   satList.appendChild(li);
 
   setInterval(() => {
