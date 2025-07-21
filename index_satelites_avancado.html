@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8">
+  <title>Satélites em Tempo Real com Trajetórias</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <style>
+    html, body, #map { margin:0; padding:0; height:100%; width:100%; }
+    #controlPanel {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      background: rgba(255,255,255,0.9);
+      padding: 10px;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<div id="controlPanel">
+  <button id="loadSatellites">Carregar Satélites</button>
+</div>
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/satellite.js@4.0.0/dist/satellite.min.js"></script>
+
+<script>
+const map = L.map('map').setView([0, 0], 2);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '&copy; OpenStreetMap contributors'
+}).addTo(map);
+
+// Ícones personalizados
+const customIcons = {
+  "ISS (ZARYA)": L.icon({
+    iconUrl: "https://upload.wikimedia.org/wikipedia/commons/3/3f/International_Space_Station.svg",
+    iconSize: [30, 30]
+  }),
+  "default": L.icon({
+    iconUrl: "https://upload.wikimedia.org/wikipedia/commons/e/e3/Satellite_icon.svg",
+    iconSize: [25, 25]
+  })
+};
+
+function getIcon(name) {
+  return customIcons[name] || customIcons["default"];
+}
+
+const satellites = {};
+const intervalSeconds = 5;
+
+function propagatePosition(satrec, minutesFromNow = 0) {
+  const time = new Date(Date.now() + minutesFromNow * 60 * 1000);
+  const posVel = satellite.propagate(satrec, time);
+  if (!posVel.position) return null;
+  const gmst = satellite.gstime(time);
+  const gd = satellite.eciToGeodetic(posVel.position, gmst);
+  const lat = satellite.degreesLat(gd.latitude);
+  const lon = satellite.degreesLong(gd.longitude);
+  return [lat, lon];
+}
+
+function plotOrbit(name, satrec) {
+  const orbit = [];
+  for (let i = -45; i <= 45; i += 5) {
+    const pos = propagatePosition(satrec, i);
+    if (pos) orbit.push(pos);
+  }
+  return L.polyline(orbit, { color: 'blue', weight: 1 });
+}
+
+function trackSatellite(name, tle1, tle2) {
+  const satrec = satellite.twoline2satrec(tle1, tle2);
+  const position = propagatePosition(satrec);
+  if (!position) return;
+
+  const marker = L.marker(position, { icon: getIcon(name) }).addTo(map).bindPopup(name);
+  const orbitLine = plotOrbit(name, satrec).addTo(map);
+
+  satellites[name] = { satrec, marker, orbitLine };
+
+  setInterval(() => {
+    const newPos = propagatePosition(satrec);
+    if (newPos) {
+      satellites[name].marker.setLatLng(newPos);
+      satellites[name].marker.setPopupContent(`${name}<br>Lat: ${newPos[0].toFixed(2)}<br>Lon: ${newPos[1].toFixed(2)}`);
+    }
+  }, intervalSeconds * 1000);
+}
+
+document.getElementById("loadSatellites").addEventListener("click", () => {
+  fetch("https://celestrak.org/NORAD/elements/active.txt")
+    .then(res => res.text())
+    .then(data => {
+      const lines = data.trim().split("\n");
+      for (let i = 0; i < 15; i += 3) {
+        const name = lines[i].trim();
+        const tle1 = lines[i+1].trim();
+        const tle2 = lines[i+2].trim();
+        trackSatellite(name, tle1, tle2);
+      }
+    })
+    .catch(err => console.error("Erro ao carregar TLEs:", err));
+});
+</script>
+
+</body>
+</html>
