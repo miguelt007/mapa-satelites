@@ -201,8 +201,8 @@ function trackSatellite(name, tle1, tle2) {
 fetch("https://tle.ivanstanojevic.me/api/tle")
   .then(res => res.json())
   .then(data => {
-    if (data && Array.isArray(data.tle)) {
-      const satArray = data.tle.slice(0, 20);
+    if (data && Array.isArray(data.member)) {
+      const satArray = data.member.slice(0, 20);
       satArray.forEach(sat => {
         trackSatellite(sat.name, sat.line1, sat.line2);
       });
