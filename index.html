@@ -5,6 +5,12 @@
   <title>Mapa de Satélites</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  .category-title {
+  cursor: pointer;
+}
+.category-block.collapsed .sat-item {
+  display: none;
+}
   <style>
     html, body, #map { margin: 0; padding: 0; height: 100%; width: 100%; }
     body.dark { background-color: #000; color: #fff; font-family: sans-serif; }
@@ -213,12 +219,17 @@ function trackSatellite(name, satrec, category, line1, line2) {
 
 function createCategorySection(category, items) {
   const block = document.createElement("div");
-  block.className = "category-block";
+  block.className = "category-block collapsed"; // inicia colapsado
 
   const title = document.createElement("div");
   title.className = "category-title";
   title.textContent = `▶ ${category} (${items.length})`;
+  title.onclick = () => {
+    block.classList.toggle("collapsed");
+  };
   block.appendChild(title);
+
+  let hasFavorito = false;
 
   items.forEach(({ name, satrec, line1, line2 }) => {
     const li = document.createElement("div");
@@ -230,6 +241,8 @@ function createCategorySection(category, items) {
     const checkbox = document.createElement("input");
     checkbox.type = "checkbox";
     checkbox.checked = favoritos.includes(name);
+    if (checkbox.checked) hasFavorito = true;
+
     checkbox.style.marginRight = "8px";
     checkbox.onchange = () => {
       if (checkbox.checked) {
@@ -260,6 +273,8 @@ function createCategorySection(category, items) {
     li.appendChild(starBtn);
     block.appendChild(li);
   });
+
+  if (hasFavorito) block.classList.remove("collapsed"); // abrir se tiver favorito
 
   return block;
 }
