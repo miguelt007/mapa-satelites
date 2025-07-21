@@ -118,11 +118,11 @@
   <div id="sidebar">
     <h2>🛰️ Satélites Visíveis</h2>
     <select id="sourceSelect">
-      <option value="active.txt">active.txt</option>
-      <option value="stations.txt">stations.txt</option>
-      <option value="starlink.txt">starlink.txt</option>
-      <option value="weather.txt">weather.txt</option>
-      <option value="gps-ops.txt">gps-ops.txt</option>
+      <option value="active">active</option>
+      <option value="starlink">starlink</option>
+      <option value="stations">stations</option>
+      <option value="weather">weather</option>
+      <option value="gps-ops">gps-ops</option>
     </select>
     <div id="searchBox">
       <input type="text" id="searchInput" placeholder="🔍 Digite o nome do satélite..." />
@@ -131,8 +131,7 @@
     <ul id="satList"></ul>
   </div>
   <div id="map"></div>
-  <div id="dataLabel">Lista: active.txt</div>
-
+  <div id="dataLabel">Lista: active</div>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://unpkg.com/satellite.js@4.0.0/dist/satellite.min.js"></script>
 <script>
@@ -151,9 +150,9 @@ const sourceSelect = document.getElementById('sourceSelect');
 const customIcons = {
   Comunicacao: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3214/3214319.png", iconSize: [25, 25] }),
   Meteorologico: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3214/3214320.png", iconSize: [25, 25] }),
-  Militar: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3214/3214332.png", iconSize: [25, 25] }),
-  Estacao: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3214/3214334.png", iconSize: [30, 30] }),
-  Generico: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3214/3214312.png", iconSize: [25, 25] })
+  Militar:        L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3214/3214332.png", iconSize: [25, 25] }),
+  Estacao:        L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3214/3214334.png", iconSize: [30, 30] }),
+  Generico:       L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3214/3214312.png", iconSize: [25, 25] })
 };
 
 function getCategory(name) {
@@ -173,7 +172,7 @@ function propagatePosition(satrec, offsetMinutes = 0) {
   const gd = satellite.eciToGeodetic(posVel.position, gmst);
   const lat = satellite.degreesLat(gd.latitude);
   const lon = satellite.degreesLong(gd.longitude);
-  return [lat, lon];
+  return (!isNaN(lat) && !isNaN(lon)) ? [lat, lon] : null;
 }
 
 function plotOrbit(name, satrec) {
@@ -253,12 +252,12 @@ function clearSatellites() {
   satList.innerHTML = "";
 }
 
-function loadSatellitesFrom(file) {
-  const baseURL = "https://celestrak.org/NORAD/elements/";
-  fetch(baseURL + file)
+function loadSatellitesFrom(group) {
+  const url = `https://celestrak.org/NORAD/elements/gp.php?GROUP=${group}&FORMAT=tle`;
+  fetch(url)
     .then(res => res.text())
     .then(text => {
-      dataLabel.textContent = "Lista: " + file;
+      dataLabel.textContent = "Lista: " + group;
       clearSatellites();
       const lines = text.trim().split('\n');
       let loaded = 0;
@@ -270,14 +269,17 @@ function loadSatellitesFrom(file) {
         loaded++;
       }
     })
-    .catch(err => console.error("Erro ao carregar TLEs do Celestrak:", err));
+    .catch(err => {
+      console.error("Erro ao carregar TLEs do Celestrak:", err);
+      dataLabel.textContent = "Lista: erro ao carregar";
+    });
 }
 
 sourceSelect.addEventListener("change", () => {
   loadSatellitesFrom(sourceSelect.value);
 });
 
-loadSatellitesFrom("active.txt");
+loadSatellitesFrom("active");
 </script>
 </body>
 </html>
