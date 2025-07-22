@@ -136,23 +136,24 @@ function getCategory(name) {
 }
 
 function formatDetails(name, line1, line2, lat, lon, velocityKmps, altitudeKm) {
-  const inclination   = line2.substring(8, 16).trim();
+  const inclination   = parseFloat(line2.substring(8, 16)) || 0;
   const eccentricity  = line2.substring(26, 33).trim();
-  const period        = line2.substring(52, 63).trim();
+  const period        = parseFloat(line2.substring(52, 63)) || 0;
   const satId         = line1.substring(2, 7).trim();
 
   return `
     <b>${name}</b><br>
     NORAD ID: ${satId}<br>
-    Inclinação: ${inclination}°<br>
+    Inclinação: ${inclination.toFixed(2)}°<br>
     Excentricidade: ${eccentricity}<br>
-    Período orbital: ${period} min<br>
-    Latitude: ${lat.toFixed(2)}<br>
-    Longitude: ${lon.toFixed(2)}<br>
+    Período orbital: ${period.toFixed(2)} min<br>
+    Latitude: ${lat.toFixed(2)}°<br>
+    Longitude: ${lon.toFixed(2)}°<br>
     Altitude: ${altitudeKm.toFixed(0)} km<br>
     Velocidade: ${velocityKmps.toFixed(2)} km/s
   `;
 }
+
 </script>
 <script>
 function propagatePositionAt(satrec, time) {
