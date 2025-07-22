@@ -82,6 +82,7 @@
 <script>
 let map = L.map('map').setView([0, 0], 2);
 let tileLayer;
+
 const customIcons = {
   Comunicacao: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/1062/1062195.png", iconSize: [26, 26] }),
   Meteorologico: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/3566/3566814.png", iconSize: [26, 26] }),
@@ -90,7 +91,7 @@ const customIcons = {
   Navegacao: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/733/733684.png", iconSize: [26, 26] }),
   Cientifico: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/4388/4388674.png", iconSize: [26, 26] }),
   Comercial: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/1171/1171434.png", iconSize: [26, 26] }),
-  Generico: L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/1912/1912175.png", iconSize: [26, 26] })
+  Generico:  L.icon({ iconUrl: "https://cdn-icons-png.flaticon.com/512/1912/1912175.png", iconSize: [26, 26] })
 };
 
 function setMapStyle(style) {
@@ -98,7 +99,7 @@ function setMapStyle(style) {
   const urls = {
     dark: "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
     topo: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
-    osm: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+    osm:  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
   };
   tileLayer = L.tileLayer(urls[style], { attribution: "&copy; Contributors" });
   tileLayer.addTo(map);
@@ -135,10 +136,11 @@ function getCategory(name) {
 }
 
 function formatDetails(name, line1, line2, lat, lon, velocityKmps, altitudeKm) {
-  const inclination = line2.substring(8, 16).trim();
-  const eccentricity = line2.substring(26, 33).trim();
-  const period = line2.substring(52, 63).trim();
-  const satId = line1.substring(2, 7).trim();
+  const inclination   = line2.substring(8, 16).trim();
+  const eccentricity  = line2.substring(26, 33).trim();
+  const period        = line2.substring(52, 63).trim();
+  const satId         = line1.substring(2, 7).trim();
+
   return `
     <b>${name}</b><br>
     NORAD ID: ${satId}<br>
@@ -185,13 +187,13 @@ function generateOrbitSegments(satrec, baseTime) {
       const [lat, lon] = pos.coord;
       const coord = [lat, lon];
 
-      // 🚫 Evita saltos visuais na trajetória ao cruzar ±180°
       if (lastLon !== null) {
         const diff = Math.abs(lon - lastLon);
-       if (diff > 180) {
-  lastLon = null; // reiniciar tracking para evitar saltos
-  continue;       // ignora ponto com salto abrupto
-}
+        if (diff > 180) {
+          lastLon = null;
+          continue; // ignora salto para evitar ligação incorreta
+        }
+      }
       lastLon = lon;
 
       (i < 0 ? pastPath : futurePath).push(coord);
@@ -410,21 +412,6 @@ function mostrarDiagnostico() {
 sourceSelect.addEventListener("change", () => loadSatellitesFrom(sourceSelect.value));
 searchInput.addEventListener("input", () => filterList(searchInput.value));
 loadSatellitesFrom("active");
-  function mostrarDiagnostico() {
-  for (let nome in satMarkers) {
-    const sat = satMarkers[nome];
-    const pontos = generateOrbitSegments(sat.satrec, new Date());
-    const allPoints = [...pontos.pastPath, ...pontos.futurePath];
-    allPoints.forEach((coord, index) => {
-      const marcador = L.circleMarker(coord, {
-        radius: 3, color: "yellow", fillOpacity: 0.5, weight: 1
-      }).addTo(map);
-      marcador.bindTooltip(`${nome} [${index}]`);
-      setTimeout(() => map.removeLayer(marcador), 6000);
-    });
-  }
-}
-
 </script>
 </body>
 </html>
