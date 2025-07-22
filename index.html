@@ -2,7 +2,7 @@
 <html lang="pt">
 <head>
   <meta charset="UTF-8" />
-  <title>Tracking de Satélites</title>
+  <title>Mapa de Satélites</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
   <style>
@@ -20,10 +20,7 @@
     #searchBox { display: flex; }
     #clearBtn { margin-left: 5px; cursor: pointer; color: #fff; border: none; }
     .category-block { margin-bottom: 16px; }
-    .category-title {
-      color: #0ff; font-weight: bold;
-      margin: 8px 0 4px; cursor: pointer;
-    }
+    .category-title { color: #0ff; font-weight: bold; margin: 8px 0 4px; cursor: pointer; }
     .category-title::before { content: "▶"; margin-right: 6px; }
     .category-block:not(.collapsed) .category-title::before { content: "▼"; }
     .category-block.collapsed .sat-item { display: none; }
@@ -39,6 +36,11 @@
       background: rgba(0,255,255,0.1); color: #0ff;
       padding: 6px 10px; border-radius: 5px; font-size: 14px;
     }
+    #passagemBox {
+      position:absolute; bottom:60px; left:10px; width:280px;
+      background: rgba(0,255,255,0.1); color: #0ff; font-size: 14px;
+      padding: 8px 10px; border-radius: 8px; line-height: 1.4;
+    }
     .satellite-label {
       color: #0ff; background: rgba(0,0,0,0.6);
       border-radius: 4px; padding: 2px 6px;
@@ -48,7 +50,7 @@
 </head>
 <body class="dark">
   <div id="sidebar">
-    <h2>🛰️ Satélites</h2>
+    <h2>🛰️ Satélites por Categoria</h2>
     <select id="mapStyleSelect">
       <option value="osm">🗺️ OpenStreetMap</option>
       <option value="dark">🌌 Carto Escuro</option>
@@ -75,7 +77,12 @@
     <div id="satList"></div>
     <button onclick="mostrarDiagnostico()" style="width:100%; margin-top:10px;">🔎 Diagnóstico de trajetória</button>
   </div>
+
   <div id="map"></div>
+  <div id="passagemBox">
+    <b>🕒 Próxima passagem</b><br>
+    <span id="passagemInfo">Selecione um satélite para previsão...</span>
+  </div>
   <div id="dataLabel">Lista: active</div>
   <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
   <script src="https://unpkg.com/satellite.js@4.0.0/dist/satellite.min.js"></script>
@@ -153,7 +160,6 @@ function formatDetails(name, line1, line2, lat, lon, velocityKmps, altitudeKm) {
     Velocidade: ${velocityKmps.toFixed(2)} km/s
   `;
 }
-
 </script>
 <script>
 function propagatePositionAt(satrec, time) {
@@ -168,7 +174,7 @@ function propagatePositionAt(satrec, time) {
   const velocityKmps = Math.sqrt(
     posVel.velocity.x ** 2 + posVel.velocity.y ** 2 + posVel.velocity.z ** 2
   );
-  const altitudeKm = gd.height;
+  const altitudeKm = gd.height; // corrigido: já está em km
 
   return {
     coord: [lat, ((lon + 180) % 360) - 180],
@@ -182,12 +188,10 @@ function isVisibleFromOeiras(coord) {
   const oeiras = { lat: 38.69, lon: -9.31 };
   function toRad(deg) { return deg * Math.PI / 180; }
   function haversine(lat1, lon1, lat2, lon2) {
-    const dLat = toRad(lat2 - lat1);
-    const dLon = toRad(lon2 - lon1);
+    const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
     const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
     return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
-
   const dist = haversine(coord[0], coord[1], oeiras.lat, oeiras.lon);
   return dist <= 1500;
 }
@@ -202,27 +206,50 @@ function generateOrbitSegments(satrec, baseTime) {
     if (pos) {
       const [lat, lon] = pos.coord;
       const diff = lastLon !== null ? Math.abs(lon - lastLon) : 0;
-
       if (diff > 180) {
         lastLon = null;
-        if (i < 0) {
-          pastSegments.push([]);
-        } else {
-          futureSegments.push([]);
-        }
+        (i < 0 ? pastSegments : futureSegments).push([]);
         continue;
       }
-
       lastLon = lon;
-      if (i < 0) {
-        pastSegments[pastSegments.length - 1].push([lat, lon]);
-      } else {
-        futureSegments[futureSegments.length - 1].push([lat, lon]);
-      }
+      (i < 0 ? pastSegments : futureSegments)[(i < 0 ? pastSegments.length : futureSegments.length) - 1].push([lat, lon]);
     }
   }
 
   return { pastSegments, futureSegments };
+}
+
+function preverProximaPassagem(name, satrec) {
+  const oeiras = { lat: 38.69, lon: -9.31 }, R = 6371;
+  const toRad = deg => deg * Math.PI / 180;
+  const haversine = (lat1, lon1, lat2, lon2) => {
+    const dLat = toRad(lat2 - lat1), dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  };
+
+  const baseTime = new Date();
+  let melhorDist = Infinity, melhorHora = null;
+
+  for (let i = 0; i <= 90; i++) {
+    const t = new Date(baseTime.getTime() + i * 60000);
+    const pos = propagatePositionAt(satrec, t);
+    if (pos) {
+      const dist = haversine(pos.coord[0], pos.coord[1], oeiras.lat, oeiras.lon);
+      if (dist < melhorDist) {
+        melhorDist = dist;
+        melhorHora = t;
+      }
+    }
+  }
+
+  if (melhorHora) {
+    const h = melhorHora.getHours().toString().padStart(2, "0");
+    const m = melhorHora.getMinutes().toString().padStart(2, "0");
+    const d = melhorHora.toLocaleDateString();
+    document.getElementById("passagemInfo").innerHTML =
+      `<b>${name}</b><br>${d} às ${h}:${m}<br>Distância: ${melhorDist.toFixed(0)} km`;
+  }
 }
 
 function trackSatellite(name, satrec, category, line1, line2) {
@@ -236,8 +263,7 @@ function trackSatellite(name, satrec, category, line1, line2) {
   const visivel = isVisibleFromOeiras([lat, lon]);
 
   const marker = L.marker(posData.coord, { icon, opacity: 0 }).addTo(map)
-    .bindPopup(
-      formatDetails(name, line1, line2, lat, lon, velocityKmps, altitudeKm) +
+    .bindPopup(formatDetails(name, line1, line2, lat, lon, velocityKmps, altitudeKm) +
       (visivel ? "<br><span style='color:lime'>🟢 Visível em Oeiras</span>" : "")
     );
   marker.getElement().style.transition = "opacity 1.2s ease";
@@ -255,10 +281,8 @@ function trackSatellite(name, satrec, category, line1, line2) {
     L.polyline(path, { color: "lime", weight: 1 }).addTo(map)
   );
 
-  const footprintRadiusKm = 1500;
   const footprint = L.circle(posData.coord, {
-    radius: footprintRadiusKm * 1000,
-    color: "orange", fillColor: "orange",
+    radius: 1500 * 1000, color: "orange", fillColor: "orange",
     opacity: 0.3, fillOpacity: 0.07
   }).addTo(map);
 
@@ -268,6 +292,8 @@ function trackSatellite(name, satrec, category, line1, line2) {
     footprint
   };
 
+  preverProximaPassagem(name, satrec);
+
   setInterval(() => {
     baseTime = new Date();
     const newPos = propagatePositionAt(satrec, baseTime);
@@ -275,8 +301,7 @@ function trackSatellite(name, satrec, category, line1, line2) {
       const [lat, lon] = newPos.coord;
       const visivelNow = isVisibleFromOeiras([lat, lon]);
       marker.setLatLng(newPos.coord);
-      marker.setPopupContent(
-        formatDetails(name, line1, line2, lat, lon, newPos.velocityKmps, newPos.altitudeKm) +
+      marker.setPopupContent(formatDetails(name, line1, line2, lat, lon, newPos.velocityKmps, newPos.altitudeKm) +
         (visivelNow ? "<br><span style='color:lime'>🟢 Visível em Oeiras</span>" : "")
       );
       tooltip.setLatLng(newPos.coord);
@@ -292,6 +317,8 @@ function trackSatellite(name, satrec, category, line1, line2) {
       satMarkers[name].orbitFuture = futureSegments.map(path =>
         L.polyline(path, { color: "lime", weight: 1 }).addTo(map)
       );
+
+      preverProximaPassagem(name, satrec);
     }
   }, 5000);
 }
@@ -329,6 +356,7 @@ function clearSatellites() {
   }
   satMarkers = {};
   satList.innerHTML = "";
+  document.getElementById("passagemInfo").innerHTML = "Selecione um satélite para previsão...";
 }
 
 function loadSatellitesFrom(group) {
