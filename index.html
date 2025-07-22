@@ -188,10 +188,10 @@ function generateOrbitSegments(satrec, baseTime) {
       // 🚫 Evita saltos visuais na trajetória ao cruzar ±180°
       if (lastLon !== null) {
         const diff = Math.abs(lon - lastLon);
-        if (diff > 180) {
-          (i < 0 ? pastPath : futurePath).push(null); // quebra visual
-        }
-      }
+       if (diff > 180) {
+  lastLon = null; // reiniciar tracking para evitar saltos
+  continue;       // ignora ponto com salto abrupto
+}
       lastLon = lon;
 
       (i < 0 ? pastPath : futurePath).push(coord);
