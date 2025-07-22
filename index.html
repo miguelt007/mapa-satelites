@@ -168,7 +168,7 @@ function propagatePositionAt(satrec, time) {
   const velocityKmps = Math.sqrt(
     posVel.velocity.x ** 2 + posVel.velocity.y ** 2 + posVel.velocity.z ** 2
   );
-  const altitudeKm = gd.height * 6371;
+  const altitudeKm = gd.height;
 
   return {
     coord: [lat, ((lon + 180) % 360) - 180],
