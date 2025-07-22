@@ -176,6 +176,21 @@ function propagatePositionAt(satrec, time) {
   };
 }
 
+function isVisibleFromOeiras(coord) {
+  const R = 6371;
+  const oeiras = { lat: 38.69, lon: -9.31 };
+  function toRad(deg) { return deg * Math.PI / 180; }
+  function haversine(lat1, lon1, lat2, lon2) {
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon/2)**2;
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+
+  const dist = haversine(coord[0], coord[1], oeiras.lat, oeiras.lon);
+  return dist <= 1500;
+}
+
 function generateOrbitSegments(satrec, baseTime) {
   const pastSegments = [[]], futureSegments = [[]];
   let lastLon = null;
@@ -217,9 +232,13 @@ function trackSatellite(name, satrec, category, line1, line2) {
 
   const [lat, lon] = posData.coord;
   const { velocityKmps, altitudeKm } = posData;
+  const visivel = isVisibleFromOeiras([lat, lon]);
 
   const marker = L.marker(posData.coord, { icon, opacity: 0 }).addTo(map)
-    .bindPopup(formatDetails(name, line1, line2, lat, lon, velocityKmps, altitudeKm));
+    .bindPopup(
+      formatDetails(name, line1, line2, lat, lon, velocityKmps, altitudeKm) +
+      (visivel ? "<br><span style='color:lime'>🟢 Visível em Oeiras</span>" : "")
+    );
   marker.getElement().style.transition = "opacity 1.2s ease";
   setTimeout(() => marker.setOpacity(1), 200);
 
@@ -253,8 +272,12 @@ function trackSatellite(name, satrec, category, line1, line2) {
     const newPos = propagatePositionAt(satrec, baseTime);
     if (newPos) {
       const [lat, lon] = newPos.coord;
+      const visivelNow = isVisibleFromOeiras([lat, lon]);
       marker.setLatLng(newPos.coord);
-      marker.setPopupContent(formatDetails(name, line1, line2, lat, lon, newPos.velocityKmps, newPos.altitudeKm));
+      marker.setPopupContent(
+        formatDetails(name, line1, line2, lat, lon, newPos.velocityKmps, newPos.altitudeKm) +
+        (visivelNow ? "<br><span style='color:lime'>🟢 Visível em Oeiras</span>" : "")
+      );
       tooltip.setLatLng(newPos.coord);
       satMarkers[name].footprint.setLatLng(newPos.coord);
 
@@ -414,15 +437,15 @@ function mostrarDiagnostico() {
   for (let nome in satMarkers) {
     const sat = satMarkers[nome];
     const pontos = generateOrbitSegments(sat.satrec, new Date());
-    const allCoords = [
-      ...pontos.pastSegments.flat(),
-      ...pontos.futureSegments.flat()
-    ];
+    const allCoords = [...pontos.pastSegments.flat(), ...pontos.futureSegments.flat()];
     allCoords.forEach((coord, index) => {
+      const visivel = isVisibleFromOeiras(coord);
       const marcador = L.circleMarker(coord, {
-        radius: 3, color: "yellow", fillOpacity: 0.5, weight: 1
+        radius: visivel ? 6 : 3,
+        color: visivel ? "lime" : "yellow",
+        fillOpacity: 0.5, weight: 1
       }).addTo(map);
-      marcador.bindTooltip(`${nome} [${index}]`);
+      marcador.bindTooltip(`${nome} [${index}]${visivel ? " 🟢" : ""}`);
       setTimeout(() => map.removeLayer(marcador), 5000);
     });
   }
