@@ -177,7 +177,7 @@ function propagatePositionAt(satrec, time) {
 }
 
 function generateOrbitSegments(satrec, baseTime) {
-  const pastPath = [], futurePath = [];
+  const pastSegments = [[]], futureSegments = [[]];
   let lastLon = null;
 
   for (let i = -45; i <= 45; i += 2) {
@@ -185,22 +185,28 @@ function generateOrbitSegments(satrec, baseTime) {
     const pos = propagatePositionAt(satrec, time);
     if (pos) {
       const [lat, lon] = pos.coord;
-      const coord = [lat, lon];
+      const diff = lastLon !== null ? Math.abs(lon - lastLon) : 0;
 
-      if (lastLon !== null) {
-        const diff = Math.abs(lon - lastLon);
-        if (diff > 180) {
-          lastLon = null;
-          continue; // ignora salto para evitar ligação incorreta
+      if (diff > 180) {
+        lastLon = null;
+        if (i < 0) {
+          pastSegments.push([]);
+        } else {
+          futureSegments.push([]);
         }
+        continue;
       }
-      lastLon = lon;
 
-      (i < 0 ? pastPath : futurePath).push(coord);
+      lastLon = lon;
+      if (i < 0) {
+        pastSegments[pastSegments.length - 1].push([lat, lon]);
+      } else {
+        futureSegments[futureSegments.length - 1].push([lat, lon]);
+      }
     }
   }
 
-  return { pastPath, futurePath };
+  return { pastSegments, futureSegments };
 }
 
 function trackSatellite(name, satrec, category, line1, line2) {
@@ -221,9 +227,13 @@ function trackSatellite(name, satrec, category, line1, line2) {
     permanent: true, direction: "right", offset: [10, 0], className: "satellite-label"
   }).setContent(name).setLatLng(posData.coord).addTo(map);
 
-  const { pastPath, futurePath } = generateOrbitSegments(satrec, baseTime);
-  const orbitPast = L.polyline(pastPath, { color: "red", weight: 1 }).addTo(map);
-  const orbitFuture = L.polyline(futurePath, { color: "lime", weight: 1 }).addTo(map);
+  const { pastSegments, futureSegments } = generateOrbitSegments(satrec, baseTime);
+  const orbitPast = pastSegments.map(path =>
+    L.polyline(path, { color: "red", weight: 1 }).addTo(map)
+  );
+  const orbitFuture = futureSegments.map(path =>
+    L.polyline(path, { color: "lime", weight: 1 }).addTo(map)
+  );
 
   const footprintRadiusKm = 1500;
   const footprint = L.circle(posData.coord, {
@@ -248,9 +258,16 @@ function trackSatellite(name, satrec, category, line1, line2) {
       tooltip.setLatLng(newPos.coord);
       satMarkers[name].footprint.setLatLng(newPos.coord);
 
-      const { pastPath, futurePath } = generateOrbitSegments(satrec, baseTime);
-      satMarkers[name].orbitPast.setLatLngs(pastPath);
-      satMarkers[name].orbitFuture.setLatLngs(futurePath);
+      satMarkers[name].orbitPast.forEach(p => map.removeLayer(p));
+      satMarkers[name].orbitFuture.forEach(f => map.removeLayer(f));
+
+      const { pastSegments, futureSegments } = generateOrbitSegments(satrec, baseTime);
+      satMarkers[name].orbitPast = pastSegments.map(path =>
+        L.polyline(path, { color: "red", weight: 1 }).addTo(map)
+      );
+      satMarkers[name].orbitFuture = futureSegments.map(path =>
+        L.polyline(path, { color: "lime", weight: 1 }).addTo(map)
+      );
     }
   }, 5000);
 }
@@ -282,8 +299,8 @@ function clearSatellites() {
     const sat = satMarkers[name];
     map.removeLayer(sat.marker);
     map.removeLayer(sat.tooltip);
-    map.removeLayer(sat.orbitPast);
-    map.removeLayer(sat.orbitFuture);
+    sat.orbitPast.forEach(p => map.removeLayer(p));
+    sat.orbitFuture.forEach(f => map.removeLayer(f));
     map.removeLayer(sat.footprint);
   }
   satMarkers = {};
@@ -300,7 +317,7 @@ function loadSatellitesFrom(group) {
       tleData = [];
       const lines = text.trim().split('\n');
       for (let i = 0; i + 2 < lines.length; i += 3) {
-        const name = lines[i].trim();
+        const name  = lines[i].trim();
         const line1 = lines[i + 1].trim();
         const line2 = lines[i + 2].trim();
         tleData.push({ name, line1, line2 });
@@ -358,8 +375,8 @@ function populateSatelliteList() {
           if (satMarkers[name]) {
             map.removeLayer(satMarkers[name].marker);
             map.removeLayer(satMarkers[name].tooltip);
-            map.removeLayer(satMarkers[name].orbitPast);
-            map.removeLayer(satMarkers[name].orbitFuture);
+            satMarkers[name].orbitPast.forEach(p => map.removeLayer(p));
+            satMarkers[name].orbitFuture.forEach(f => map.removeLayer(f));
             map.removeLayer(satMarkers[name].footprint);
             delete satMarkers[name];
           }
@@ -397,9 +414,11 @@ function mostrarDiagnostico() {
   for (let nome in satMarkers) {
     const sat = satMarkers[nome];
     const pontos = generateOrbitSegments(sat.satrec, new Date());
-    const allPoints = [...pontos.pastPath, ...pontos.futurePath];
-    allPoints.forEach((coord, index) => {
-      if (!coord) return;
+    const allCoords = [
+      ...pontos.pastSegments.flat(),
+      ...pontos.futureSegments.flat()
+    ];
+    allCoords.forEach((coord, index) => {
       const marcador = L.circleMarker(coord, {
         radius: 3, color: "yellow", fillOpacity: 0.5, weight: 1
       }).addTo(map);
