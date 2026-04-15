@@ -12,62 +12,59 @@
         /* PAINEL DE CONTROLO */
         #control-panel {
             position: absolute; top: 10px; left: 10px; z-index: 1000;
-            background: rgba(5, 7, 10, 0.9); border: 1px solid #ffb86c;
-            padding: 15px; color: #ffb86c; width: 280px;
-            box-shadow: 0 0 15px rgba(255, 184, 108, 0.1);
+            background: rgba(5, 7, 10, 0.9); border: 1px solid #ff8c00;
+            padding: 15px; color: #ff8c00; width: 280px;
+            box-shadow: 0 0 15px rgba(255, 140, 0, 0.2);
         }
 
-        .clock-section { border-bottom: 1px solid #ffb86c; padding-bottom: 10px; margin-bottom: 10px; }
-        .clock-section span { font-weight: bold; color: #fff; text-shadow: 0 0 5px #ffb86c; }
+        .clock-section { border-bottom: 1px solid #ff8c00; padding-bottom: 10px; margin-bottom: 10px; }
+        .clock-section span { font-weight: bold; color: #fff; text-shadow: 0 0 5px #ff8c00; }
 
-        .category-section { margin-bottom: 10px; border-bottom: 1px solid rgba(255, 184, 108, 0.3); padding-bottom: 10px; }
+        .category-section { margin-bottom: 10px; border-bottom: 1px solid rgba(255, 140, 0, 0.3); padding-bottom: 10px; }
         select#sat-category, #sat-search {
-            width: 100%; background: #111; border: 1px solid #ffb86c;
-            color: #ffb86c; padding: 5px; font-family: 'Courier New', monospace;
+            width: 100%; background: #111; border: 1px solid #ff8c00;
+            color: #ff8c00; padding: 5px; font-family: 'Courier New', monospace;
             margin-top: 5px; box-sizing: border-box; outline: none;
         }
 
         .bulk-actions { margin-top: 8px; display: flex; gap: 10px; }
         .bulk-btn { 
-            background: none; border: 1px solid #ffb86c; color: #ffb86c; 
+            background: none; border: 1px solid #ff8c00; color: #ff8c00; 
             font-size: 9px; cursor: pointer; padding: 2px 5px; text-transform: uppercase;
         }
-        .bulk-btn:hover { background: #ffb86c; color: #000; }
+        .bulk-btn:hover { background: #ff8c00; color: #000; }
 
-        .filter-section { max-height: 250px; overflow-y: auto; margin-top: 10px; scrollbar-width: thin; scrollbar-color: #ffb86c #05070a; }
+        .filter-section { max-height: 250px; overflow-y: auto; margin-top: 10px; scrollbar-width: thin; scrollbar-color: #ff8c00 #05070a; }
         .sat-item { font-size: 11px; display: flex; align-items: center; margin-bottom: 5px; }
-        .sat-item input { margin-right: 8px; accent-color: #ffb86c; }
+        .sat-item input { margin-right: 8px; accent-color: #ff8c00; }
 
-        /* ESTILO DOS ÍCONES */
+        /* ÍCONE SATÉLITE LARANJA NEON */
         .sat-crosshair { display: flex; align-items: center; justify-content: center; }
         .sat-point-core {
-            width: 4px; height: 4px; background: #fff; border-radius: 50%;
-            box-shadow: 0 0 8px #fff, 0 0 15px #ffb86c;
-            animation: pulse-sat 2s infinite;
+            width: 6px; height: 6px; background: #ff8c00; border-radius: 50%;
+            box-shadow: 0 0 5px #fff, 0 0 10px #ff8c00, 0 0 20px #ff4500;
+            animation: pulse-orange 1.5s infinite;
         }
-        @keyframes pulse-sat {
-            0% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(1.4); opacity: 0.7; }
-            100% { transform: scale(1); opacity: 1; }
+        @keyframes pulse-orange {
+            0% { transform: scale(1); box-shadow: 0 0 10px #ff8c00, 0 0 20px #ff4500; }
+            50% { transform: scale(1.3); box-shadow: 0 0 15px #ff8c00, 0 0 35px #ff4500; opacity: 0.9; }
+            100% { transform: scale(1); box-shadow: 0 0 10px #ff8c00, 0 0 20px #ff4500; }
         }
 
+        /* BASES E DSN */
         .base-square { background: none; border: 1px solid #00f2ff; box-shadow: 0 0 8px #00f2ff; }
         .dsn-diamond { background: none; border: 1px solid #39ff14; box-shadow: 0 0 8px #39ff14; transform: rotate(45deg); }
         
-        .sat-label { color: #ffb86c !important; font-size: 10px !important; background: none !important; border: none !important; box-shadow: none !important; font-weight: bold; pointer-events: none; text-shadow: 1px 1px 2px #000; }
-        .leaflet-tooltip-right:before, .leaflet-tooltip-left:before { display: none !important; }
-
-        /* POPUPS */
+        .sat-label { color: #ff8c00 !important; font-size: 10px !important; background: none !important; border: none !important; box-shadow: none !important; font-weight: bold; pointer-events: none; text-shadow: 1px 1px 2px #000; }
+        
+        /* POPUPS CUSTOMIZADOS */
         .leaflet-popup-content-wrapper { background: rgba(5, 7, 10, 0.95) !important; border-radius: 0px; font-family: 'Courier New', monospace; }
         .popup-title { border-bottom: 1px solid; margin-bottom: 5px; font-weight: bold; display: block; font-size: 14px; text-transform: uppercase; }
         .popup-data { font-size: 11px; line-height: 1.4; }
         
-        .sat-popup .leaflet-popup-content-wrapper { border: 1px solid #ffb86c; color: #ffb86c !important; }
-        .sat-popup .leaflet-popup-tip { background: #ffb86c !important; }
+        .sat-popup .leaflet-popup-content-wrapper { border: 1px solid #ff8c00; color: #ff8c00 !important; }
         .base-popup .leaflet-popup-content-wrapper { border: 1px solid #00f2ff; color: #00f2ff !important; }
-        .base-popup .leaflet-popup-tip { background: #00f2ff !important; }
         .dsn-popup .leaflet-popup-content-wrapper { border: 1px solid #39ff14; color: #39ff14 !important; }
-        .dsn-popup .leaflet-popup-tip { background: #39ff14 !important; }
 
         .neon-meteor { filter: url(#neon-glow); stroke-linecap: round; pointer-events: none; }
     </style>
@@ -108,7 +105,7 @@
   <defs>
     <filter id="neon-glow" x="-50%" y="-50%" width="200%" height="200%">
       <feGaussianBlur stdDeviation="1.5" result="blur" />
-      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 1 0 0 0 0 0.72 0 0 0 0 0.42 0 0 0 1 0" result="glow"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 1 0 0 0 0 0.55 0 0 0 0 0 0 0 0 1 0" result="glow"/>
       <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
@@ -121,28 +118,23 @@
     const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: false }).setView([20, 0], 3);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    // --- INFRAESTRUTURA TERRESTRE (LISTA COMPLETA WIKIPEDIA) ---
+    // --- INFRAESTRUTURA TERRESTRE ---
     const baseIcon = L.divIcon({ className: 'base-square', iconSize: [6, 6] });
     const dsnIcon = L.divIcon({ className: 'dsn-diamond', iconSize: [7, 7] });
 
     const launchBases = [
-        // AMÉRICA DO NORTE
         { name: "Cape Canaveral SFS", country: "EUA", coords: [28.4889, -80.5778] },
         { name: "Kennedy Space Center", country: "EUA", coords: [28.5721, -80.6480] },
         { name: "Vandenberg SFB", country: "EUA", coords: [34.7420, -120.5724] },
         { name: "Kodiak Launch Complex", country: "EUA (Alasca)", coords: [57.4358, -152.3378] },
-        { name: "Mojave Air & Space Port", country: "EUA", coords: [35.0594, -118.1517] },
-        { name: "Oklahoma Spaceport", country: "EUA", coords: [35.3397, -99.2003] },
-        { name: "Spaceport America", country: "EUA (Novo México)", coords: [32.9903, -106.9750] },
-        { name: "Starbase (SpaceX)", country: "EUA (Texas)", coords: [25.9973, -97.1555] },
-        { name: "Meadows Field (Pegasus)", country: "EUA", coords: [35.4336, -119.0567] },
-
-        // AMÉRICA DO SUL
+        { name: "Meadows Field Airport", country: "EUA (CA)", coords: [35.4336, -119.0567] },
+        { name: "Mojave Air & Space Port", country: "EUA (CA)", coords: [35.0594, -118.1517] },
+        { name: "Oklahoma Spaceport", country: "EUA (OK)", coords: [35.3397, -99.2003] },
+        { name: "Spaceport America", country: "EUA (NM)", coords: [32.9903, -106.9750] },
+        { name: "Starbase (SpaceX)", country: "EUA (TX)", coords: [25.9973, -97.1555] },
         { name: "Barreira do Inferno", country: "Brasil (RN)", coords: [-5.8950, -35.1611] },
         { name: "Alcântara Launch Center", country: "Brasil (MA)", coords: [-2.3400, -44.4000] },
-        { name: "Guiana Space Centre", country: "ESA (Guiana F.)", coords: [5.2393, -52.7685] },
-
-        // ÁSIA
+        { name: "Guiana Space Centre", country: "França (ESA)", coords: [5.2393, -52.7685] },
         { name: "Baikonur Cosmodrome", country: "Cazaquistão", coords: [45.9646, 63.3052] },
         { name: "Plesetsk Cosmodrome", country: "Rússia", coords: [62.9257, 40.5777] },
         { name: "Vostochny Cosmodrome", country: "Rússia", coords: [51.8844, 128.3339] },
@@ -153,14 +145,9 @@
         { name: "Tanegashima Space Center", country: "Japão", coords: [30.3748, 130.9577] },
         { name: "Uchinoura Space Center", country: "Japão", coords: [31.2519, 131.0819] },
         { name: "Satish Dhawan Center", country: "Índia", coords: [13.7199, 80.2304] },
-
-        // EUROPA
         { name: "Esrange Space Center", country: "Suécia", coords: [67.8933, 21.1069] },
         { name: "Andøya Space", country: "Noruega", coords: [69.2941, 16.0303] },
-
-        // OCEANIA
-        { name: "Christmas Island", country: "Austrália", coords: [-10.4475, 105.6904] },
-        { name: "Mahia Peninsula (Rocket Lab)", country: "Nova Zelândia", coords: [-39.2614, 177.8648] }
+        { name: "Christmas Island", country: "Austrália", coords: [-10.4475, 105.6904] }
     ];
 
     const dsnStations = [
@@ -170,11 +157,11 @@
     ];
 
     launchBases.forEach(b => {
-        L.marker(b.coords, { icon: baseIcon }).bindPopup(`<span class="popup-title">${b.name}</span><div class="popup-data"><b>PAÍS:</b> ${b.country}<br><b>LAT/LNG:</b> ${b.coords[0]}, ${b.coords[1]}</div>`, { className: 'base-popup' }).addTo(map);
+        L.marker(b.coords, { icon: baseIcon }).bindPopup(`<span class="popup-title">${b.name}</span><div class="popup-data"><b>LOC:</b> ${b.country}</div>`, { className: 'base-popup' }).addTo(map);
     });
 
     dsnStations.forEach(d => {
-        L.marker(d.coords, { icon: dsnIcon }).bindPopup(`<span class="popup-title" style="border-bottom-color: #39ff14;">${d.name}</span><div class="popup-data"><b>TIPO:</b> Deep Space Network<br><b>LOC:</b> ${d.loc}</div>`, { className: 'dsn-popup' }).addTo(map);
+        L.marker(d.coords, { icon: dsnIcon }).bindPopup(`<span class="popup-title" style="border-bottom-color: #39ff14;">${d.name}</span><div class="popup-data"><b>TIPO:</b> Deep Space Network</div>`, { className: 'dsn-popup' }).addTo(map);
     });
 
     // --- LÓGICA DE SATÉLITES ---
@@ -205,7 +192,6 @@
             const name = lines[i].trim();
             const l1 = lines[i+1];
             const l2 = lines[i+2];
-            const noradId = l1.substring(2, 7).trim();
             const satrec = satellite.twoline2satrec(l1, l2);
             if (satrec) {
                 const marker = L.marker([0, 0], { icon: satIcon, zIndexOffset: 1000 })
@@ -213,17 +199,17 @@
                     .bindPopup("Calculando...", { minWidth: 160, className: 'sat-popup' });
                 
                 const layers = [
-                    L.polyline([], { color: '#ff8c00', weight: 4, opacity: 0.1, className: 'neon-meteor' }),
-                    L.polyline([], { color: '#ffb86c', weight: 2, opacity: 0.3, className: 'neon-meteor' }),
-                    L.polyline([], { color: '#ffffff', weight: 1, opacity: 0.7, className: 'neon-meteor' })
+                    L.polyline([], { color: '#ff4500', weight: 4, opacity: 0.1, className: 'neon-meteor' }),
+                    L.polyline([], { color: '#ff8c00', weight: 2, opacity: 0.4, className: 'neon-meteor' }),
+                    L.polyline([], { color: '#ffffff', weight: 1, opacity: 0.8, className: 'neon-meteor' })
                 ];
 
-                const satObj = { satrec, marker, layers, name, noradId, visible: false };
+                const satObj = { satrec, marker, layers, name, visible: false };
                 satellites.push(satObj);
 
                 const div = document.createElement('div');
                 div.className = 'sat-item';
-                div.setAttribute('data-search', (name + noradId).toUpperCase());
+                div.setAttribute('data-search', name.toUpperCase());
                 div.innerHTML = `<input type="checkbox"> <span>${name}</span>`;
                 div.querySelector('input').onchange = (e) => toggleSat(satObj, e.target.checked);
                 satListDiv.appendChild(div);
@@ -243,7 +229,7 @@
     }
 
     function toggleAll(show) {
-        if (show && satellites.length > 500) { if (!confirm(`Ativar muitos satélites pode tornar o mapa lento. Continuar?`)) return; }
+        if (show && satellites.length > 500) { if (!confirm(`Ativar muitos satélites pode afetar o desempenho. Continuar?`)) return; }
         document.querySelectorAll('.sat-item').forEach((item, index) => {
             if (item.style.display !== 'none') {
                 const cb = item.querySelector('input');
@@ -290,7 +276,7 @@
 
                 if (sat.marker.isPopupOpen()) {
                     const vel = Math.sqrt(Math.pow(posVel.velocity.x, 2) + Math.pow(posVel.velocity.y, 2) + Math.pow(posVel.velocity.z, 2));
-                    sat.marker.setPopupContent(`<span class="popup-title">${sat.name}</span><div class="popup-data"><b>NORAD ID:</b> ${sat.noradId}<br><b>ALTITUDE:</b> ${posGd.height.toFixed(2)} km<br><b>VELOCID.:</b> ${vel.toFixed(2)} km/s</div>`);
+                    sat.marker.setPopupContent(`<span class="popup-title">${sat.name}</span><div class="popup-data"><b>ALTITUDE:</b> ${posGd.height.toFixed(2)} km<br><b>VELOCID.:</b> ${vel.toFixed(2)} km/s</div>`);
                 }
             }
         });
