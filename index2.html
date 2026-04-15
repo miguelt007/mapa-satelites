@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Satellite Tracker - Mission Control Pro</title>
+    <title>Mission Control - Global Space Network</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #05070a; font-family: 'Courier New', monospace; overflow: hidden; }
@@ -27,7 +27,6 @@
             margin-top: 5px; box-sizing: border-box; outline: none;
         }
 
-        /* BOTÃO SELECIONAR TODOS */
         .bulk-actions { margin-top: 8px; display: flex; gap: 10px; }
         .bulk-btn { 
             background: none; border: 1px solid #ffb86c; color: #ffb86c; 
@@ -39,17 +38,17 @@
         .sat-item { font-size: 11px; display: flex; align-items: center; margin-bottom: 5px; }
         .sat-item input { margin-right: 8px; accent-color: #ffb86c; }
 
-        /* ESTILOS DOS PONTOS E NOMES (SEM SETA E SEM NEON NO TEXTO) */
+        /* ESTILOS DOS ÍCONES */
         .base-square { background: none; border: 1px solid #00f2ff; box-shadow: 0 0 8px #00f2ff; }
+        .dsn-diamond { background: none; border: 1px solid #39ff14; box-shadow: 0 0 8px #39ff14; transform: rotate(45deg); }
         .sat-point { background-color: #fff; border-radius: 50%; border: 1px solid #ffb86c; box-shadow: 0 0 4px #fff, 0 0 10px #ffb86c, 0 0 18px #ff8c00; }
         
+        /* LABELS E TOOLTIPS */
         .sat-label { 
             color: #ffb86c !important; font-size: 10px !important; background: none !important; 
             border: none !important; box-shadow: none !important; 
-            font-weight: bold; pointer-events: none; 
-            text-shadow: 1px 1px 2px #000; /* Apenas sombra para leitura, sem brilho neon */
+            font-weight: bold; pointer-events: none; text-shadow: 1px 1px 2px #000; 
         }
-        /* REMOVER SETA DO TOOLTIP */
         .leaflet-tooltip-right:before, .leaflet-tooltip-left:before { display: none !important; }
 
         /* POPUPS */
@@ -61,6 +60,8 @@
         .sat-popup .leaflet-popup-tip { background: #ffb86c !important; }
         .base-popup .leaflet-popup-content-wrapper { border: 1px solid #00f2ff; color: #00f2ff !important; }
         .base-popup .leaflet-popup-tip { background: #00f2ff !important; }
+        .dsn-popup .leaflet-popup-content-wrapper { border: 1px solid #39ff14; color: #39ff14 !important; }
+        .dsn-popup .leaflet-popup-tip { background: #39ff14 !important; }
 
         .neon-meteor { filter: url(#neon-glow); stroke-linecap: round; pointer-events: none; }
     </style>
@@ -114,32 +115,51 @@
     const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: false }).setView([20, 0], 3);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
+    // --- INFRAESTRUTURA TERRESTRE COMPLETA ---
     const baseIcon = L.divIcon({ className: 'base-square', iconSize: [6, 6] });
-    const satIcon = L.divIcon({ className: 'sat-point', iconSize: [4, 4] });
+    const dsnIcon = L.divIcon({ className: 'dsn-diamond', iconSize: [7, 7] });
 
     const launchBases = [
-    { name: "Kennedy Space Center", country: "EUA", coords: [28.5721, -80.6480] },
-    { name: "Vandenberg SFB", country: "EUA", coords: [34.7420, -120.5724] },
-    { name: "Baikonur Cosmodrome", country: "Cazaquistão", coords: [45.9646, 63.3052] },
-    { name: "Plesetsk Cosmodrome", country: "Rússia", coords: [62.9257, 40.5777] },
-    { name: "Kourou (ESA)", country: "Guiana Francesa", coords: [5.2393, -52.7685] },
-    { name: "Jiuquan Center", country: "China", coords: [40.9606, 100.2983] },
-    { name: "Wenchang Site", country: "China", coords: [19.6143, 110.9510] },
-    { name: "Satish Dhawan", country: "Índia", coords: [13.7199, 80.2304] },
-    { name: "Tanegashima", country: "Japão", coords: [30.3748, 130.9577] },
-    { name: "Alcântara", country: "Brasil", coords: [-2.3400, -44.4000] },
-    { name: "Rocket Lab Complex", country: "Nova Zelândia", coords: [-39.2614, 177.8648] },
-    { name: "SpaceX Starbase", country: "EUA (Texas)", coords: [25.9973, -97.1555] },
-    { name: "SpaceX LC-39A", country: "EUA (Florida)", coords: [28.6082, -80.6041] },
-    { name: "SpaceX SLC-40", country: "EUA (Florida)", coords: [28.5619, -80.5773] },
-    { name: "SpaceX SLC-4E", country: "EUA (California)", coords: [34.6320, -120.6111] }
+        // NASA / EUA
+        { name: "Kennedy Space Center", country: "EUA", coords: [28.5721, -80.6480] },
+        { name: "Vandenberg SFB", country: "EUA", coords: [34.7420, -120.5724] },
+        // SpaceX Específicas
+        { name: "SpaceX Starbase", country: "EUA (Boca Chica)", coords: [25.9973, -97.1555] },
+        { name: "SpaceX LC-39A", country: "EUA (Florida)", coords: [28.6082, -80.6041] },
+        { name: "SpaceX SLC-40", country: "EUA (Florida)", coords: [28.5619, -80.5773] },
+        // Internacionais
+        { name: "Baikonur Cosmodrome", country: "Cazaquistão", coords: [45.9646, 63.3052] },
+        { name: "Plesetsk Cosmodrome", country: "Rússia", coords: [62.9257, 40.5777] },
+        { name: "Guiana Space Centre", country: "França (ESA)", coords: [5.2393, -52.7685] },
+        { name: "Jiuquan Center", country: "China", coords: [40.9606, 100.2983] },
+        { name: "Wenchang Site", country: "China", coords: [19.6143, 110.9510] },
+        { name: "Satish Dhawan", country: "Índia", coords: [13.7199, 80.2304] },
+        { name: "Tanegashima", country: "Japão", coords: [30.3748, 130.9577] },
+        { name: "Alcântara Center", country: "Brasil", coords: [-2.3400, -44.4000] },
+        { name: "Rocket Lab Complex", country: "Nova Zelândia", coords: [-39.2614, 177.8648] }
     ];
+
+    const dsnStations = [
+        { name: "DSN Goldstone", loc: "Califórnia, EUA", coords: [35.4266, -116.8903] },
+        { name: "DSN Madrid", loc: "Espanha", coords: [40.4313, -4.2480] },
+        { name: "DSN Canberra", loc: "Austrália", coords: [-35.4014, 148.9817] }
+    ];
+
+    // Desenhar Bases de Lançamento
     launchBases.forEach(b => {
-        const content = `<span class="popup-title">${b.name}</span><div class="popup-data"><b>PAÍS:</b> ${b.country}<br><b>COORD:</b> ${b.coords[0]}, ${b.coords[1]}</div>`;
+        const content = `<span class="popup-title">${b.name}</span><div class="popup-data"><b>LOC:</b> ${b.country}<br><b>COORD:</b> ${b.coords[0]}, ${b.coords[1]}</div>`;
         L.marker(b.coords, { icon: baseIcon }).bindPopup(content, { className: 'base-popup' }).addTo(map);
     });
 
+    // Desenhar Estações DSN
+    dsnStations.forEach(d => {
+        const content = `<span class="popup-title" style="border-bottom-color: #39ff14;">${d.name}</span><div class="popup-data"><b>TIPO:</b> Deep Space Network<br><b>LOC:</b> ${d.loc}</div>`;
+        L.marker(d.coords, { icon: dsnIcon }).bindPopup(content, { className: 'dsn-popup' }).addTo(map);
+    });
+
+    // --- LÓGICA DE SATÉLITES ---
     let satellites = [];
+    const satIcon = L.divIcon({ className: 'sat-point', iconSize: [4, 4] });
 
     async function loadCategory(group) {
         satellites.forEach(s => { map.removeLayer(s.marker); s.layers.forEach(l => map.removeLayer(l)); });
@@ -186,14 +206,12 @@
                 div.className = 'sat-item';
                 div.setAttribute('data-search', (name + noradId).toUpperCase());
                 div.innerHTML = `<input type="checkbox"> <span>${name}</span>`;
-                
-                const cb = div.querySelector('input');
-                cb.onchange = (e) => toggleSat(satObj, e.target.checked);
+                div.querySelector('input').onchange = (e) => toggleSat(satObj, e.target.checked);
                 satListDiv.appendChild(div);
 
                 if (satellites.length <= 15) {
                     toggleSat(satObj, true);
-                    cb.checked = true;
+                    div.querySelector('input').checked = true;
                 }
             }
         }
@@ -201,22 +219,17 @@
 
     function toggleSat(sat, show) {
         sat.visible = show;
-        if (show) {
-            sat.marker.addTo(map);
-            sat.layers.forEach(l => l.addTo(map));
-        } else {
-            map.removeLayer(sat.marker);
-            sat.layers.forEach(l => map.removeLayer(l));
-        }
+        if (show) { sat.marker.addTo(map); sat.layers.forEach(l => l.addTo(map)); }
+        else { map.removeLayer(sat.marker); sat.layers.forEach(l => map.removeLayer(l)); }
     }
 
     function toggleAll(show) {
         if (show && satellites.length > 500) {
-            if (!confirm(`Vais ativar ${satellites.length} satélites. O mapa pode ficar lento. Continuar?`)) return;
+            if (!confirm(`Ativar ${satellites.length} satélites pode tornar o mapa lento. Continuar?`)) return;
         }
-        const checkboxes = document.querySelectorAll('.sat-item input');
-        checkboxes.forEach((cb, index) => {
-            if (cb.parentElement.style.display !== 'none') {
+        document.querySelectorAll('.sat-item').forEach((item, index) => {
+            if (item.style.display !== 'none') {
+                const cb = item.querySelector('input');
                 cb.checked = show;
                 toggleSat(satellites[index], show);
             }
@@ -245,15 +258,7 @@
 
                 if (sat.marker.isPopupOpen()) {
                     const vel = Math.sqrt(Math.pow(posVel.velocity.x, 2) + Math.pow(posVel.velocity.y, 2) + Math.pow(posVel.velocity.z, 2));
-                    sat.marker.setPopupContent(`
-                        <span class="popup-title">${sat.name}</span>
-                        <div class="popup-data">
-                            <b>NORAD ID:</b> ${sat.noradId}<br>
-                            <b>ALTITUDE:</b> ${posGd.height.toFixed(2)} km<br>
-                            <b>VELOCID.:</b> ${vel.toFixed(2)} km/s<br>
-                            <b>LAT/LNG :</b> ${lat.toFixed(3)}, ${lng.toFixed(3)}
-                        </div>
-                    `);
+                    sat.marker.setPopupContent(`<span class="popup-title">${sat.name}</span><div class="popup-data"><b>NORAD ID:</b> ${sat.noradId}<br><b>ALTITUDE:</b> ${posGd.height.toFixed(2)} km<br><b>VELOCID.:</b> ${vel.toFixed(2)} km/s<br><b>LAT/LNG:</b> ${lat.toFixed(3)}, ${lng.toFixed(3)}</div>`);
                 }
 
                 let coords = [];
@@ -261,8 +266,7 @@
                     const pTime = new Date(now.getTime() - (j * 60000));
                     const pPv = satellite.propagate(sat.satrec, pTime);
                     if (pPv.position) {
-                        const pGmst = satellite.gstime(pTime);
-                        const pGd = satellite.eciToGeodetic(pPv.position, pGmst);
+                        const pGd = satellite.eciToGeodetic(pPv.position, satellite.gstime(pTime));
                         coords.push([satellite.degreesLat(pGd.latitude), satellite.degreesLong(pGd.longitude)]);
                     }
                 }
