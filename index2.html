@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Satellite Live Tracker</title>
+    <title>Satellite Tracker Pro</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; background: #0b0d17; font-family: 'Courier New', monospace; }
-        #map { height: 100vh; width: 100%; background: #050505; }
+        body, html { margin: 0; padding: 0; height: 100%; background: #05070a; font-family: 'Courier New', monospace; overflow: hidden; }
+        #map { height: 100vh; width: 100%; background: #05070a; }
 
-        /* Icone da Base (Quadrado Ciano que gostaste) */
+        /* Bases ainda menores como pediste */
         .base-square {
-            background-color: rgba(0, 242, 255, 0.1);
-            border: 2px solid #00f2ff;
-            box-shadow: 0 0 12px #00f2ff, inset 0 0 8px #00f2ff;
+            background-color: transparent;
+            border: 1.5px solid #00f2ff;
+            box-shadow: 0 0 5px #00f2ff;
         }
 
-        /* Ponto do Satélite (Laranja/Amarelo conforme a imagem) */
+        /* Satélites (Pontos Laranja da imagem) */
         .sat-point {
             background-color: #ffb86c;
             border-radius: 50%;
@@ -24,21 +24,20 @@
             border: 1px solid #fff;
         }
 
-        /* Label com o Nome do Satélite */
+        /* Nomes dos Satélites conforme a imagem */
         .sat-label {
             color: #ffb86c !important;
-            font-size: 10px !important;
+            font-size: 9px !important;
             background: none !important;
             border: none !important;
             box-shadow: none !important;
-            text-shadow: 1px 1px 3px #000, -1px -1px 3px #000;
+            text-shadow: 1px 1px 2px #000;
             font-weight: bold;
-            pointer-events: none;
+            margin-left: 5px;
         }
 
-        /* Popups */
-        .leaflet-popup-content-wrapper { background: #1a1c23; color: #fff; border: 1px solid #00f2ff; }
-        .leaflet-popup-tip { background: #00f2ff; }
+        /* Estilo Dark */
+        .leaflet-container { background: #05070a !important; }
     </style>
 </head>
 <body>
@@ -49,50 +48,49 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.0.0/satellite.min.js"></script>
 
 <script>
-    // Inicializa o mapa com estilo escuro
     const map = L.map('map', { 
-        worldCopyJump: true,
-        zoomControl: false 
+        worldCopyJump: true, 
+        zoomControl: false,
+        attributionControl: false 
     }).setView([20, 0], 3);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: 'Gemini Satellite Tracking'
-    }).addTo(map);
+    // Camada de mapa ultra escura
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    // Definição dos Icons
-    const baseIcon = L.divIcon({ className: 'base-square', iconSize: [12, 12] });
-    const satIcon = L.divIcon({ className: 'sat-point', iconSize: [6, 6] });
+    const baseIcon = L.divIcon({ className: 'base-square', iconSize: [8, 8] }); // Tamanho reduzido
+    const satIcon = L.divIcon({ className: 'sat-point', iconSize: [5, 5] });
 
     // Bases de Lançamento
     const launchBases = [
         { name: "Kennedy Space Center", coords: [28.57, -80.64] },
-        { name: "Baikonur Cosmodrome", coords: [45.96, 63.30] },
-        { name: "Plesetsk Cosmodrome", coords: [62.92, 40.57] },
-        { name: "Kourou (Guyane)", coords: [5.23, -52.76] },
-        { name: "Jiuquan Space Center", coords: [40.96, 100.29] },
+        { name: "Baikonur", coords: [45.96, 63.30] },
+        { name: "Kourou", coords: [5.23, -52.76] },
+        { name: "Plesetsk", coords: [62.92, 40.57] },
+        { name: "Jiuquan", coords: [40.96, 100.29] },
         { name: "Alcântara", coords: [-2.37, -44.39] }
     ];
 
     launchBases.forEach(base => {
-        L.marker(base.coords, { icon: baseIcon }).bindPopup(`<b>Base:</b> ${base.name}`).addTo(map);
+        L.marker(base.coords, { icon: baseIcon }).bindPopup(base.name).addTo(map);
     });
 
     let satellites = [];
 
-    async function fetchSatellites() {
+    async function fetchTLE() {
         const tleUrl = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle';
-        // Usando o proxy AllOrigins para contornar o erro de "Satélites não aparecem"
+        
+        // ATENÇÃO: Se o link direto falhar no GitHub, é OBRIGATÓRIO usar um proxy 
+        // porque o Celestrak bloqueia navegadores. Usei o mais estável aqui:
         const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(tleUrl)}`;
 
         try {
             const response = await fetch(proxyUrl);
-            if (!response.ok) throw new Error("Erro na rede");
             const json = await response.json();
             const data = json.contents;
             
             const lines = data.split('\n').filter(l => l.trim().length > 0);
             
-            // Limpa satélites se for uma re-atualização
+            // Limpa marcadores antigos
             satellites.forEach(s => map.removeLayer(s.marker));
             satellites = [];
 
@@ -107,46 +105,42 @@
                         .bindTooltip(name, { 
                             permanent: true, 
                             direction: 'right', 
-                            className: 'sat-label',
-                            offset: [10, 0] 
+                            className: 'sat-label' 
                         })
                         .addTo(map);
 
                     satellites.push({ name, satrec, marker });
-                } catch (e) { /* Pula satélites com TLE inválido */ }
+                } catch (e) {}
             }
-            console.log(`${satellites.length} satélites carregados.`);
             updatePositions();
         } catch (error) {
-            console.error("Erro ao carregar TLE:", error);
-            // Tenta novamente em 10 segundos se falhar
-            setTimeout(fetchSatellites, 10000);
+            console.error("Erro ao carregar dados:", error);
         }
     }
 
     function updatePositions() {
         const now = new Date();
         satellites.forEach(sat => {
-            const positionAndVelocity = satellite.propagate(sat.satrec, now);
-            const positionEci = positionAndVelocity.position;
+            const posVel = satellite.propagate(sat.satrec, now);
+            const posEci = posVel.position;
             
-            if (positionEci) {
+            if (posEci) {
                 const gmst = satellite.gstime(now);
-                const positionGd = satellite.eciToGeodetic(positionEci, gmst);
-                const lat = satellite.degreesLat(positionGd.latitude);
-                const lng = satellite.degreesLong(positionGd.longitude);
-                
-                sat.marker.setLatLng([lat, lng]);
+                const posGd = satellite.eciToGeodetic(posEci, gmst);
+                sat.marker.setLatLng([
+                    satellite.degreesLat(posGd.latitude),
+                    satellite.degreesLong(posGd.longitude)
+                ]);
             }
         });
         requestAnimationFrame(updatePositions);
     }
 
-    // Inicia o processo
-    fetchSatellites();
+    // Carrega dados agora
+    fetchTLE();
     
-    // Atualiza os dados TLE a cada 1 hora para manter precisão
-    setInterval(fetchSatellites, 3600000);
+    // Atualiza a cada 12 horas (12h * 60m * 60s * 1000ms)
+    setInterval(fetchTLE, 43200000);
 
 </script>
 </body>
