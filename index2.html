@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Satellite Tracker - Meteor Effect</title>
+    <title>Satellite Tracker - Fine Meteor Trail</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #05070a; font-family: 'Courier New', monospace; overflow: hidden; }
@@ -13,34 +13,35 @@
         .base-square {
             background: none;
             border: 1px solid #00f2ff;
-            box-shadow: 0 0 8px #00f2ff, inset 0 0 2px #00f2ff;
+            box-shadow: 0 0 5px #00f2ff;
         }
 
-        /* Satélites: Ponto Central Super Brilhante */
+        /* Satélites: Ponto Pequeno e Brilhante (Mais Fino) */
         .sat-point {
-            background-color: #fff; /* Núcleo branco para parecer mais quente */
+            background-color: #fff;
             border-radius: 50%;
-            border: 2px solid #ffb86c;
-            box-shadow: 0 0 10px #ffb86c, 0 0 20px #ff8c00;
+            border: 1px solid #ffb86c;
+            /* Brilho intenso mas concentrado num ponto pequeno */
+            box-shadow: 0 0 6px #ffb86c, 0 0 12px #ff8c00;
         }
 
-        /* Nomes: Laranja Neon */
+        /* Nomes: Laranja Neon (Texto mais fino) */
         .sat-label {
             color: #ffb86c !important;
-            font-size: 11px !important;
+            font-size: 9px !important;
             background: none !important;
             border: none !important;
             box-shadow: none !important;
-            text-shadow: 0 0 5px #000, 1px 1px 2px #000;
-            font-weight: bold;
+            text-shadow: 1px 1px 2px #000;
+            font-weight: normal;
             white-space: nowrap;
         }
 
         .leaflet-tooltip-right:before { display: none !important; }
 
-        /* Filtro de Glow para as camadas da cauda */
+        /* Filtro de Glow para as camadas da cauda (Menos desfoque para manter a finura) */
         .meteor-layer {
-            filter: blur(2px); /* Suaviza as bordas para parecer fumo/luz */
+            filter: blur(1px); 
             stroke-linecap: round;
             stroke-linejoin: round;
             pointer-events: none;
@@ -63,10 +64,10 @@
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    const baseIcon = L.divIcon({ className: 'base-square', iconSize: [8, 8] });
-    const satIcon = L.divIcon({ className: 'sat-point', iconSize: [6, 6] });
+    const baseIcon = L.divIcon({ className: 'base-square', iconSize: [6, 6] });
+    // Reduzi o tamanho do ponto para 4x4
+    const satIcon = L.divIcon({ className: 'sat-point', iconSize: [4, 4] });
 
-    // Bases Repostas
     const launchBases = [
         { name: "Kennedy Space Center", coords: [28.57, -80.64] },
         { name: "Baikonur Cosmodrome", coords: [45.96, 63.30] },
@@ -99,15 +100,15 @@
                 const satrec = satellite.twoline2satrec(lines[i+1], lines[i+2]);
                 if (satrec) {
                     const marker = L.marker([0, 0], { icon: satIcon, zIndexOffset: 1000 })
-                        .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label', offset: [12, 0] })
+                        .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label', offset: [8, 0] })
                         .addTo(map);
 
-                    // 4 CAMADAS PARA O EFEITO METEORO
+                    // 4 CAMADAS COM ESPESSURAS REDUZIDAS (MUITO MAIS FINAS)
                     const layers = [
-                        L.polyline([], { color: '#ff8c00', weight: 8, opacity: 0.1, className: 'meteor-layer' }).addTo(map), // Glow exterior largo
-                        L.polyline([], { color: '#ffb86c', weight: 4, opacity: 0.3, className: 'meteor-layer' }).addTo(map), // Cauda média
-                        L.polyline([], { color: '#ffb86c', weight: 2, opacity: 0.6, className: 'meteor-layer' }).addTo(map), // Brilho interno
-                        L.polyline([], { color: '#ffffff', weight: 1, opacity: 0.9, className: 'meteor-layer' }).addTo(map)  // Núcleo branco fino
+                        L.polyline([], { color: '#ff8c00', weight: 4, opacity: 0.15, className: 'meteor-layer' }).addTo(map), // Glow exterior
+                        L.polyline([], { color: '#ffb86c', weight: 2, opacity: 0.4, className: 'meteor-layer' }).addTo(map),  // Cauda média
+                        L.polyline([], { color: '#ffb86c', weight: 1, opacity: 0.6, className: 'meteor-layer' }).addTo(map),  // Linha fina
+                        L.polyline([], { color: '#ffffff', weight: 0.5, opacity: 0.8, className: 'meteor-layer' }).addTo(map) // Núcleo agulha
                     ];
 
                     satellites.push({ satrec, marker, layers });
@@ -129,9 +130,9 @@
                 
                 sat.marker.setLatLng([curLat, curLng]);
 
-                // Cálculo de 1 minuto de rasto (muito curto para efeito de impacto)
+                // Rasto ainda mais curto para efeito meteoro focado (0.8 minutos)
                 let trailCoords = [];
-                for (let j = 0; j <= 1.2; j += 0.2) {
+                for (let j = 0; j <= 0.8; j += 0.2) {
                     const pTime = new Date(now.getTime() - (j * 60000));
                     const pPv = satellite.propagate(sat.satrec, pTime);
                     if (pPv.position) {
@@ -144,11 +145,11 @@
                 if (trailCoords.length > 1) {
                     const lngs = trailCoords.map(c => c[1]);
                     if (Math.max(...lngs) - Math.min(...lngs) < 180) {
-                        // Distribuímos os pontos pelas camadas para criar o efeito afilado
-                        sat.layers[0].setLatLngs(trailCoords); // Cauda longa e larga
-                        sat.layers[1].setLatLngs(trailCoords.slice(0, 4)); 
-                        sat.layers[2].setLatLngs(trailCoords.slice(0, 3)); 
-                        sat.layers[3].setLatLngs(trailCoords.slice(0, 2)); // Núcleo curto
+                        // Aplicação proporcional para manter a cauda afilada e fina
+                        sat.layers[0].setLatLngs(trailCoords); 
+                        sat.layers[1].setLatLngs(trailCoords.slice(0, 3)); 
+                        sat.layers[2].setLatLngs(trailCoords.slice(0, 2)); 
+                        sat.layers[3].setLatLngs(trailCoords.slice(0, 1)); 
                     } else {
                         sat.layers.forEach(l => l.setLatLngs([]));
                     }
