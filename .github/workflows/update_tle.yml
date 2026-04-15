@@ -14,7 +14,6 @@ jobs:
       - name: Download TLE from CelesTrak
         run: |
           curl -o data.tle "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle"
-          curl -o data.tle "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle"
       - name: Commit and Push
         run: |
           git config --global user.name "GitHub Action"
