@@ -3,46 +3,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Satellite Tracker Pro - Meteor Edition</title>
+    <title>Satellite Tracker - Meteor Effect</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #05070a; font-family: 'Courier New', monospace; overflow: hidden; }
         #map { height: 100vh; width: 100%; background: #05070a; }
 
-        /* Bases Quadradas Ciano (DE VOLTA) */
+        /* Bases Quadradas Ciano */
         .base-square {
             background: none;
             border: 1px solid #00f2ff;
             box-shadow: 0 0 8px #00f2ff, inset 0 0 2px #00f2ff;
         }
 
-        /* Satélites: Ponto Neon Laranja */
+        /* Satélites: Ponto Central Super Brilhante */
         .sat-point {
-            background-color: #ffb86c;
+            background-color: #fff; /* Núcleo branco para parecer mais quente */
             border-radius: 50%;
-            border: 1px solid #fff;
-            box-shadow: 0 0 15px #ffb86c, 0 0 25px #ff8c00;
+            border: 2px solid #ffb86c;
+            box-shadow: 0 0 10px #ffb86c, 0 0 20px #ff8c00;
         }
 
-        /* Nomes: Laranja e sem setas */
+        /* Nomes: Laranja Neon */
         .sat-label {
             color: #ffb86c !important;
-            font-size: 10px !important;
+            font-size: 11px !important;
             background: none !important;
             border: none !important;
             box-shadow: none !important;
-            text-shadow: 2px 2px 4px #000;
+            text-shadow: 0 0 5px #000, 1px 1px 2px #000;
             font-weight: bold;
             white-space: nowrap;
         }
 
-        /* Remove a seta do tooltip */
-        .leaflet-tooltip-right:before, .leaflet-tooltip-left:before { display: none !important; }
+        .leaflet-tooltip-right:before { display: none !important; }
 
-        /* Filtro de brilho para a cauda de meteoro */
-        .meteor-trail {
-            filter: blur(1px) drop-shadow(0 0 4px #ffb86c);
+        /* Filtro de Glow para as camadas da cauda */
+        .meteor-layer {
+            filter: blur(2px); /* Suaviza as bordas para parecer fumo/luz */
             stroke-linecap: round;
+            stroke-linejoin: round;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -62,10 +63,10 @@
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    const baseIcon = L.divIcon({ className: 'base-square', iconSize: [7, 7] });
+    const baseIcon = L.divIcon({ className: 'base-square', iconSize: [8, 8] });
     const satIcon = L.divIcon({ className: 'sat-point', iconSize: [6, 6] });
 
-    // 1. ADICIONAR AS BASES (REPOSTO)
+    // Bases Repostas
     const launchBases = [
         { name: "Kennedy Space Center", coords: [28.57, -80.64] },
         { name: "Baikonur Cosmodrome", coords: [45.96, 63.30] },
@@ -76,7 +77,7 @@
     ];
 
     launchBases.forEach(base => {
-        L.marker(base.coords, { icon: baseIcon }).bindPopup(`<b>BASE</b><br>${base.name}`).addTo(map);
+        L.marker(base.coords, { icon: baseIcon }).bindPopup(base.name).addTo(map);
     });
 
     let satellites = [];
@@ -89,7 +90,7 @@
             
             satellites.forEach(s => { 
                 map.removeLayer(s.marker); 
-                s.trails.forEach(t => map.removeLayer(t));
+                s.layers.forEach(l => map.removeLayer(l));
             });
             satellites = [];
 
@@ -97,18 +98,19 @@
                 const name = lines[i].trim();
                 const satrec = satellite.twoline2satrec(lines[i+1], lines[i+2]);
                 if (satrec) {
-                    const marker = L.marker([0, 0], { icon: satIcon })
+                    const marker = L.marker([0, 0], { icon: satIcon, zIndexOffset: 1000 })
                         .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label', offset: [12, 0] })
                         .addTo(map);
 
-                    // Criar 3 camadas de rasto com opacidades diferentes para o efeito meteoro
-                    const trails = [
-                        L.polyline([], { color: '#ffb86c', weight: 3, opacity: 0.2, className: 'meteor-trail' }).addTo(map), // Fumo exterior
-                        L.polyline([], { color: '#ffb86c', weight: 2, opacity: 0.5, className: 'meteor-trail' }).addTo(map), // Brilho médio
-                        L.polyline([], { color: '#fff', weight: 1, opacity: 0.8, className: 'meteor-trail' }).addTo(map)    // Núcleo quente
+                    // 4 CAMADAS PARA O EFEITO METEORO
+                    const layers = [
+                        L.polyline([], { color: '#ff8c00', weight: 8, opacity: 0.1, className: 'meteor-layer' }).addTo(map), // Glow exterior largo
+                        L.polyline([], { color: '#ffb86c', weight: 4, opacity: 0.3, className: 'meteor-layer' }).addTo(map), // Cauda média
+                        L.polyline([], { color: '#ffb86c', weight: 2, opacity: 0.6, className: 'meteor-layer' }).addTo(map), // Brilho interno
+                        L.polyline([], { color: '#ffffff', weight: 1, opacity: 0.9, className: 'meteor-layer' }).addTo(map)  // Núcleo branco fino
                     ];
 
-                    satellites.push({ satrec, marker, trails });
+                    satellites.push({ satrec, marker, layers });
                 }
             }
             updatePositions();
@@ -127,26 +129,29 @@
                 
                 sat.marker.setLatLng([curLat, curLng]);
 
-                // CALCULAR RASTO CURTO (ESTILO METEORO - 1.5 minutos)
+                // Cálculo de 1 minuto de rasto (muito curto para efeito de impacto)
                 let trailCoords = [];
-                for (let j = 0; j <= 1.5; j += 0.3) { // Pontos mais frequentes para suavizar a curva
-                    const pastTime = new Date(now.getTime() - (j * 60000));
-                    const pPv = satellite.propagate(sat.satrec, pastTime);
+                for (let j = 0; j <= 1.2; j += 0.2) {
+                    const pTime = new Date(now.getTime() - (j * 60000));
+                    const pPv = satellite.propagate(sat.satrec, pTime);
                     if (pPv.position) {
-                        const pGmst = satellite.gstime(pastTime);
+                        const pGmst = satellite.gstime(pTime);
                         const pGd = satellite.eciToGeodetic(pPv.position, pGmst);
                         trailCoords.push([satellite.degreesLat(pGd.latitude), satellite.degreesLong(pGd.longitude)]);
                     }
                 }
 
-                const lngs = trailCoords.map(c => c[1]);
-                if (Math.max(...lngs) - Math.min(...lngs) < 180) {
-                    // Aplicar o rasto às 3 camadas. Cada camada usa uma parte do rasto para o degradê
-                    sat.trails[0].setLatLngs(trailCoords); // Cauda completa (mais larga e transparente)
-                    sat.trails[1].setLatLngs(trailCoords.slice(0, 3)); // Meio do rasto
-                    sat.trails[2].setLatLngs(trailCoords.slice(0, 2)); // Ponta do rasto (núcleo branco)
-                } else {
-                    sat.trails.forEach(t => t.setLatLngs([]));
+                if (trailCoords.length > 1) {
+                    const lngs = trailCoords.map(c => c[1]);
+                    if (Math.max(...lngs) - Math.min(...lngs) < 180) {
+                        // Distribuímos os pontos pelas camadas para criar o efeito afilado
+                        sat.layers[0].setLatLngs(trailCoords); // Cauda longa e larga
+                        sat.layers[1].setLatLngs(trailCoords.slice(0, 4)); 
+                        sat.layers[2].setLatLngs(trailCoords.slice(0, 3)); 
+                        sat.layers[3].setLatLngs(trailCoords.slice(0, 2)); // Núcleo curto
+                    } else {
+                        sat.layers.forEach(l => l.setLatLngs([]));
+                    }
                 }
             }
         });
