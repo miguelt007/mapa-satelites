@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Satellite Tracker Live</title>
+    <title>Satellite Tracker Pro</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; background: #05070a; font-family: 'Courier New', monospace; overflow: hidden; }
+        body, html { margin: 0; padding: 0; height: 100%; background: #05070a; font-family: sans-serif; overflow: hidden; }
         #map { height: 100vh; width: 100%; background: #05070a; }
 
-        /* Bases Quadradas Pequenas (Ciano) */
+        /* Bases Quadradas Pequenas */
         .base-square {
             background-color: transparent;
             border: 1px solid #00f2ff;
@@ -24,7 +24,7 @@
             border: 1px solid #fff;
         }
 
-        /* Nomes dos Satélites (Estilo da Imagem) */
+        /* Labels dos Nomes */
         .sat-label {
             color: #ffb86c !important;
             font-size: 9px !important;
@@ -33,7 +33,7 @@
             box-shadow: none !important;
             text-shadow: 1px 1px 2px #000;
             font-weight: bold;
-            white-space: nowrap;
+            pointer-events: none;
         }
     </style>
 </head>
@@ -51,13 +51,12 @@
         attributionControl: false 
     }).setView([20, 0], 3);
 
-    // Mapa base escuro
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
     const baseIcon = L.divIcon({ className: 'base-square', iconSize: [6, 6] });
     const satIcon = L.divIcon({ className: 'sat-point', iconSize: [5, 5] });
 
-    // Bases de Lançamento
+    // Bases
     const launchBases = [
         { name: "Kennedy Space Center", coords: [28.57, -80.64] },
         { name: "Baikonur", coords: [45.96, 63.30] },
@@ -73,29 +72,25 @@
 
     let satellites = [];
 
+    // NOVA ESTRATÉGIA: Usar um serviço de cache de TLE que não bloqueia CORS
     async function fetchTLE() {
-        // Usando o grupo "visual" que é o mais garantido de carregar
-        const tleUrl = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=visual&FORMAT=tle';
-        // Proxy AllOrigins configurado para ignorar cache e erros de rede
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(tleUrl)}`;
+        // Este é um worker que faz bypass ao Celestrak de forma mais limpa
+        const url = 'https://tle.ivanstanojevic.me/api/tle/set/visual'; 
 
         try {
-            const response = await fetch(proxyUrl);
+            const response = await fetch(url);
             const json = await response.json();
-            const data = json.contents;
             
-            if (!data) return;
+            // O formato deste JSON é diferente, vamos ajustar o loop
+            if (!json.member) return;
 
-            const lines = data.split('\n').filter(l => l.trim().length > 0);
-            
-            // Limpa o que já existe
             satellites.forEach(s => map.removeLayer(s.marker));
             satellites = [];
 
-            for (let i = 0; i < lines.length - 2; i += 3) {
-                const name = lines[i].trim();
-                const tle1 = lines[i+1].trim();
-                const tle2 = lines[i+2].trim();
+            json.member.forEach(satData => {
+                const name = satData.name;
+                const tle1 = satData.line1;
+                const tle2 = satData.line2;
                 
                 try {
                     const satrec = satellite.twoline2satrec(tle1, tle2);
@@ -105,12 +100,32 @@
 
                     satellites.push({ satrec, marker });
                 } catch (e) {}
-            }
+            });
+            
             updatePositions();
         } catch (error) {
-            console.log("A aguardar ligação...");
-            setTimeout(fetchTLE, 5000); // Tenta de novo se falhar
+            console.log("Erro de ligação. A tentar proxy secundário...");
+            // Se o primeiro falhar, tentamos o AllOrigins como backup
+            fetchBackupTLE();
         }
+    }
+
+    async function fetchBackupTLE() {
+        const url = 'https://api.allorigins.win/get?url=' + encodeURIComponent('https://celestrak.org/NORAD/elements/gp.php?GROUP=visual&FORMAT=tle');
+        try {
+            const response = await fetch(url);
+            const json = await response.json();
+            const lines = json.contents.split('\n').filter(l => l.trim().length > 0);
+            
+            for (let i = 0; i < lines.length - 2; i += 3) {
+                const satrec = satellite.twoline2satrec(lines[i+1], lines[i+2]);
+                const marker = L.marker([0, 0], { icon: satIcon })
+                    .bindTooltip(lines[i].trim(), { permanent: true, direction: 'right', className: 'sat-label' })
+                    .addTo(map);
+                satellites.push({ satrec, marker });
+            }
+            updatePositions();
+        } catch(e) { console.error("Falha total"); }
     }
 
     function updatePositions() {
@@ -130,7 +145,7 @@
     }
 
     fetchTLE();
-    setInterval(fetchTLE, 43200000); // 12 horas
+    setInterval(fetchTLE, 43200000); 
 </script>
 </body>
 </html>
