@@ -9,7 +9,7 @@
         body, html { margin: 0; padding: 0; height: 100%; background: #05070a; font-family: 'Courier New', monospace; overflow: hidden; }
         #map { height: 100vh; width: 100%; background: #05070a; }
 
-        /* Bases Quadradas Pequenas */
+        /* Bases Quadradas - tamanho reduzido conforme pedido */
         .base-square {
             background-color: transparent;
             border: 1px solid #00f2ff;
@@ -24,7 +24,7 @@
             border: 1px solid #fff;
         }
 
-        /* Nomes dos Satélites */
+        /* Nomes dos Satélites - Estilo da imagem */
         .sat-label {
             color: #ffb86c !important;
             font-size: 9px !important;
@@ -34,8 +34,6 @@
             text-shadow: 1px 1px 2px #000;
             font-weight: bold;
         }
-
-        .leaflet-container { background: #05070a !important; }
     </style>
 </head>
 <body>
@@ -54,7 +52,6 @@
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    // Ícones
     const baseIcon = L.divIcon({ className: 'base-square', iconSize: [6, 6] });
     const satIcon = L.divIcon({ className: 'sat-point', iconSize: [5, 5] });
 
@@ -75,23 +72,22 @@
     let satellites = [];
 
     async function fetchTLE() {
-        const tleUrl = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle';
-        // Novo Proxy mais rápido e estável
-        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(tleUrl)}`;
+        // Trocamos para o grupo 'visual' (satélites visíveis a olho nu) que é mais leve e fiável
+        const tleUrl = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=visual&FORMAT=tle';
+        
+        // Proxy alternativo (Cloudflare Worker ou AllOrigins sem cache)
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(tleUrl)}&timestamp=${new Date().getTime()}`;
 
         try {
             const response = await fetch(proxyUrl);
-            if (!response.ok) throw new Error("Erro na resposta do servidor");
+            const json = await response.json();
+            const data = json.contents;
             
-            // Lemos como TEXTO puro para evitar o erro de JSON "Oops..."
-            const data = await response.text();
-            
-            if (data.includes("Oops") || data.length < 100) {
-                throw new Error("Proxy retornou erro ou dados insuficientes");
-            }
+            if (!data || data.length < 100) throw new Error("Dados inválidos");
 
             const lines = data.split('\n').filter(l => l.trim().length > 0);
             
+            // Limpar marcadores antes de recarregar
             satellites.forEach(s => map.removeLayer(s.marker));
             satellites = [];
 
@@ -113,11 +109,12 @@
                     satellites.push({ name, satrec, marker });
                 } catch (e) {}
             }
+            console.log("Sucesso: Satélites carregados: " + satellites.length);
             updatePositions();
         } catch (error) {
-            console.error("Erro ao carregar dados:", error);
-            // Se falhar, tenta novamente em 30 segundos
-            setTimeout(fetchTLE, 30000);
+            console.error("Erro no Fetch:", error);
+            // Tenta o proxy secundário se o primeiro falhar
+            setTimeout(fetchTLE, 5000);
         }
     }
 
@@ -125,11 +122,9 @@
         const now = new Date();
         satellites.forEach(sat => {
             const posVel = satellite.propagate(sat.satrec, now);
-            const posEci = posVel.position;
-            
-            if (posEci) {
+            if (posVel.position) {
                 const gmst = satellite.gstime(now);
-                const posGd = satellite.eciToGeodetic(posEci, gmst);
+                const posGd = satellite.eciToGeodetic(posVel.position, gmst);
                 sat.marker.setLatLng([
                     satellite.degreesLat(posGd.latitude),
                     satellite.degreesLong(posGd.longitude)
@@ -142,7 +137,6 @@
     fetchTLE();
     // Atualiza dados a cada 12 horas
     setInterval(fetchTLE, 43200000);
-
 </script>
 </body>
 </html>
