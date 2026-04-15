@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNC - Global Mission Control v5.1</title>
+    <title>SNC - Global Mission Control v5.2</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #020408; font-family: 'Courier New', monospace; overflow: hidden; color: #00f2ff; }
@@ -55,31 +55,19 @@
             display: none !important;
         }
 
-        /* INFRAESTRUTURA (Wireframe Style) */
-        .icon-base { border: 1px solid #ff4e00; background: rgba(255, 78, 0, 0.15); box-shadow: 0 0 5px #ff4e00; }
-        .icon-dsn { border: 1px solid #39ff14; background: rgba(57, 255, 20, 0.15); transform: rotate(45deg); box-shadow: 0 0 5px #39ff14; }
+        /* INFRAESTRUTURA ORIGINAL */
+        .icon-base { border: 1px solid #ff4e00; background: rgba(255, 78, 0, 0.3); box-shadow: 0 0 5px #ff4e00; }
+        .icon-dsn { border: 1px solid #39ff14; background: rgba(57, 255, 20, 0.3); transform: rotate(45deg); box-shadow: 0 0 5px #39ff14; }
 
-        /* NOVO ÍCONE TRIÂNGULO AMARELO (Wireframe & Sem Corte) */
-        .icon-special-container {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: none !important;
-            border: none !important;
-        }
-
-        .icon-special-triangle {
-            width: 14px; /* Tamanho do triângulo interno */
-            height: 14px;
-            background-color: transparent;
-            /* Cor do contorno */
-            border: 1px solid #ffea00; 
-            /* Criar a forma de triângulo mantendo o contorno */
-            clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
-            /* Brilho */
-            filter: drop-shadow(0 0 3px #ffea00); 
-            /* Ligeiro preenchimento para consistência */
-            background-color: rgba(255, 234, 0, 0.1); 
+        /* NOVO TRIÂNGULO - MESMO LAYOUT DOS QUADRADOS */
+        .icon-special-tri {
+            width: 8px; height: 8px;
+            border-left: 1px solid #ffea00;
+            border-bottom: 1px solid #ffea00;
+            background: rgba(255, 234, 0, 0.2);
+            transform: rotate(-45deg); /* Transforma o quadrado num triângulo visual */
+            box-shadow: -2px 2px 5px rgba(255, 234, 0, 0.3);
+            margin-top: -4px; /* Ajuste de centro */
         }
 
         /* POPUPS */
@@ -90,25 +78,6 @@
         #legend { position: absolute; bottom: 30px; left: 15px; z-index: 1000; background: rgba(2, 4, 8, 0.9); border: 1px solid rgba(0, 242, 255, 0.5); padding: 10px; font-size: 10px; }
         .leg-item { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
         .box { width: 8px; height: 8px; }
-        
-        /* Legenda Triângulo */
-        .leg-tri {
-            width: 0; height: 0;
-            border-left: 5px solid transparent;
-            border-right: 5px solid transparent;
-            border-bottom: 10px solid transparent;
-            position: relative;
-            margin-right: 8px;
-        }
-        .leg-tri::after {
-            content: '';
-            position: absolute;
-            top: 1px; left: -5px;
-            width: 10px; height: 10px;
-            border: 1px solid #ffea00;
-            clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
-            background-color: rgba(255, 234, 0, 0.1);
-        }
     </style>
 </head>
 <body>
@@ -145,7 +114,7 @@
 <div id="legend">
     <div class="leg-item"><div class="box icon-dsn"></div> <span>ESTRACK / DSN / TT&C</span></div>
     <div class="leg-item"><div class="box icon-base"></div> <span>Active Launch Sites</span></div>
-    <div class="leg-item"><div class="leg-tri"></div> <span>Custom Sensor Site</span></div>
+    <div class="leg-item"><div class="icon-special-tri" style="margin-top:0; transform: rotate(-45deg) scale(0.8);"></div> <span>Custom Sensor Site</span></div>
 </div>
 
 <div id="map"></div>
@@ -157,19 +126,10 @@
     const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: false }).setView([20, 0], 2);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    // --- MARCADOR ESPECIAL CORRIGIDO (TRIÂNGULO AMARELO WIREFRAME) ---
+    // --- MARCADOR ESPECIAL INTEGRADO NO MESMO ESTILO ---
     const customCoords = [38.6944381, -9.3089739];
-    
-    // Contentor maior para evitar corte (18x18), triângulo interno (14x14)
-    const specialIcon = L.divIcon({ 
-        className: 'icon-special-container', 
-        html: '<div class="icon-special-triangle"></div>',
-        iconSize: [18, 18],
-        iconAnchor: [9, 18] // Ponto de ancoragem na base central do triângulo
-    });
-
-    L.marker(customCoords, { icon: specialIcon })
-     .bindPopup(`<span class="pop-title" style="color:#ffea00; border-bottom-color:#ffea00;">Sensor Localized</span><b>Coord:</b> ${customCoords[0].toFixed(5)}, ${customCoords[1].toFixed(5)}<br><b>Status:</b> <span style="color:#ffea00;">ACTIVE</span>`)
+    L.marker(customCoords, { icon: L.divIcon({ className: 'icon-special-tri', iconSize: [8, 8] }) })
+     .bindPopup(`<span class="pop-title" style="color:#ffea00; border-bottom-color:#ffea00;">Sensor Site</span><b>Coord:</b> ${customCoords[0]}, ${customCoords[1]}<br><b>Status:</b> <span style="color:#ffea00;">OPERATIONAL</span>`)
      .addTo(map);
 
     const groundStations = [
