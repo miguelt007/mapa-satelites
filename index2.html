@@ -3,23 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Satellite Tracker - Mission Control</title>
+    <title>Satellite Tracker - Mission Control Pro</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #05070a; font-family: 'Courier New', monospace; overflow: hidden; }
         #map { height: 100vh; width: 100%; background: #05070a; }
 
-        /* Painel de Controlo (Superior Esquerdo) */
+        /* Painel de Controlo */
         #control-panel {
             position: absolute;
             top: 10px;
             left: 10px;
             z-index: 1000;
-            background: rgba(5, 7, 10, 0.85);
+            background: rgba(5, 7, 10, 0.9);
             border: 1px solid #ffb86c;
             padding: 15px;
             color: #ffb86c;
-            width: 220px;
+            width: 250px;
             box-shadow: 0 0 15px rgba(255, 184, 108, 0.1);
         }
 
@@ -28,23 +28,37 @@
             padding-bottom: 10px;
             margin-bottom: 10px;
         }
-
         .clock-section div { font-size: 13px; margin-bottom: 4px; }
         .clock-section span { font-weight: bold; color: #fff; text-shadow: 0 0 5px #ffb86c; }
 
-        .filter-section { max-height: 300px; overflow-y: auto; }
-        .filter-section h4 { margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase; }
+        /* Campo de Pesquisa */
+        #search-container { margin-bottom: 10px; }
+        #sat-search {
+            width: 100%;
+            background: #111;
+            border: 1px solid #ffb86c;
+            color: #ffb86c;
+            padding: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            box-sizing: border-box;
+        }
+        #sat-search::placeholder { color: rgba(255, 184, 108, 0.5); }
+
+        .filter-section { max-height: 300px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: #ffb86c #05070a; }
+        .filter-section h4 { margin: 0 0 8px 0; font-size: 14px; text-transform: uppercase; border-bottom: 1px solid rgba(255, 184, 108, 0.3); padding-bottom: 5px; }
         
-        .sat-item { font-size: 11px; display: flex; align-items: center; margin-bottom: 5px; cursor: pointer; }
+        .sat-item { font-size: 11px; display: flex; align-items: center; margin-bottom: 5px; cursor: pointer; transition: 0.2s; }
+        .sat-item:hover { background: rgba(255, 184, 108, 0.1); }
         .sat-item input { margin-right: 8px; accent-color: #ffb86c; }
 
-        /* Estilos dos Popups e Markers (Mantidos) */
+        /* Estilos Leaflet (Bases, Satélites e Popups) */
         .base-square { background: none; border: 1px solid #00f2ff; box-shadow: 0 0 8px #00f2ff; }
         .sat-point { background-color: #fff; border-radius: 50%; border: 1px solid #ffb86c; box-shadow: 0 0 4px #fff, 0 0 10px #ffb86c, 0 0 18px #ff8c00; }
         .sat-label { color: #ffb86c !important; font-size: 10px !important; background: none !important; border: none !important; box-shadow: none !important; text-shadow: 0 0 4px #ffb86c, 1px 1px 2px #000; font-weight: bold; pointer-events: none; }
         .leaflet-tooltip-right:before { display: none !important; }
 
-        .leaflet-popup-content-wrapper { background: rgba(5, 7, 10, 0.9) !important; border-radius: 0px; font-family: 'Courier New', monospace; }
+        .leaflet-popup-content-wrapper { background: rgba(5, 7, 10, 0.95) !important; border-radius: 0px; font-family: 'Courier New', monospace; }
         .popup-title { border-bottom: 1px solid; margin-bottom: 5px; font-weight: bold; display: block; font-size: 14px; text-transform: uppercase; }
         .popup-data { font-size: 11px; line-height: 1.4; }
 
@@ -63,8 +77,13 @@
         <div>UTC: <span id="utc-clock">00:00:00</span></div>
         <div>LOC: <span id="local-clock">00:00:00</span></div>
     </div>
+    
+    <div id="search-container">
+        <input type="text" id="sat-search" placeholder="PROCURAR (NOME / NORAD ID)..." onkeyup="filterSatList()">
+    </div>
+
     <div class="filter-section">
-        <h4>Satélites Ativos</h4>
+        <h4>Satelites Ativos</h4>
         <div id="sat-list"></div>
     </div>
 </div>
@@ -91,7 +110,6 @@
     const baseIcon = L.divIcon({ className: 'base-square', iconSize: [6, 6] });
     const satIcon = L.divIcon({ className: 'sat-point', iconSize: [4, 4] });
 
-    // Relógio
     function updateClocks() {
         const now = new Date();
         document.getElementById('utc-clock').innerText = now.toISOString().substr(11, 8);
@@ -99,7 +117,6 @@
     }
     setInterval(updateClocks, 1000);
 
-    // Bases
     const launchBases = [
         { name: "Kennedy Space Center", country: "EUA", coords: [28.57, -80.64] },
         { name: "Baikonur Cosmodrome", country: "Cazaquistão", coords: [45.96, 63.30] },
@@ -122,10 +139,7 @@
             const data = await response.text();
             const lines = data.split('\n').filter(l => l.trim().length > 0);
             
-            satellites.forEach(s => { 
-                map.removeLayer(s.marker); 
-                s.layers.forEach(l => map.removeLayer(l)); 
-            });
+            satellites.forEach(s => { map.removeLayer(s.marker); s.layers.forEach(l => map.removeLayer(l)); });
             satellites = [];
             const satListDiv = document.getElementById('sat-list');
             satListDiv.innerHTML = '';
@@ -154,10 +168,12 @@
                     const satObj = { satrec, marker, layers, name, noradId, visible: true };
                     satellites.push(satObj);
 
-                    // Adicionar ao Seletor no Painel
                     const div = document.createElement('div');
                     div.className = 'sat-item';
-                    div.innerHTML = `<input type="checkbox" checked> ${name}`;
+                    div.setAttribute('data-name', name.toUpperCase());
+                    div.setAttribute('data-norad', noradId);
+                    div.innerHTML = `<input type="checkbox" checked> <span>${name} [${noradId}]</span>`;
+                    
                     div.querySelector('input').onchange = (e) => {
                         satObj.visible = e.target.checked;
                         if (!satObj.visible) {
@@ -173,6 +189,23 @@
             }
             updatePositions();
         } catch (e) { setTimeout(fetchTLE, 5000); }
+    }
+
+    // Função de Filtro da Pesquisa
+    function filterSatList() {
+        const query = document.getElementById('sat-search').value.toUpperCase();
+        const items = document.querySelectorAll('.sat-item');
+        
+        items.forEach(item => {
+            const name = item.getAttribute('data-name');
+            const norad = item.getAttribute('data-norad');
+            
+            if (name.includes(query) || norad.includes(query)) {
+                item.style.display = 'flex';
+            } else {
+                item.style.display = 'none';
+            }
+        });
     }
 
     function updatePositions() {
@@ -207,7 +240,8 @@
                     const pTime = new Date(now.getTime() - (j * 60000));
                     const pPv = satellite.propagate(sat.satrec, pTime);
                     if (pPv.position) {
-                        const pGd = satellite.eciToGeodetic(pPv.position, satellite.gstime(pTime));
+                        const pGmst = satellite.gstime(pTime);
+                        const pGd = satellite.eciToGeodetic(pPv.position, pGmst);
                         coords.push([satellite.degreesLat(pGd.latitude), satellite.degreesLong(pGd.longitude)]);
                     }
                 }
