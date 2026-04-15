@@ -1,7 +1,7 @@
 name: Update Satellite Data
 on:
   schedule:
-    - cron: '0 */12 * * *' # Corre a cada 12 horas
+    - cron: '0 */2 * * *' # Corre a cada 12 horas
   workflow_dispatch: # Permite-te correr manualmente para testar
 
 jobs:
