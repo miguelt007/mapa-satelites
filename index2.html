@@ -3,47 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Satellite Tracker - Fine Meteor Trail</title>
+    <title>Satellite Tracker - Real Neon Edition</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; background: #05070a; font-family: 'Courier New', monospace; overflow: hidden; }
+        body, html { margin: 0; padding: 0; height: 100%; background: #05070a; overflow: hidden; }
         #map { height: 100vh; width: 100%; background: #05070a; }
 
         /* Bases Quadradas Ciano */
-        .base-square {
-            background: none;
-            border: 1px solid #00f2ff;
-            box-shadow: 0 0 5px #00f2ff;
-        }
+        .base-square { border: 1px solid #00f2ff; box-shadow: 0 0 8px #00f2ff; }
 
-        /* Satélites: Ponto Pequeno e Brilhante (Mais Fino) */
+        /* Ponto Satélite Neon (Brilho Intenso) */
         .sat-point {
             background-color: #fff;
             border-radius: 50%;
-            border: 1px solid #ffb86c;
-            /* Brilho intenso mas concentrado num ponto pequeno */
-            box-shadow: 0 0 6px #ffb86c, 0 0 12px #ff8c00;
+            /* Camadas de sombra para efeito neon no ponto */
+            box-shadow: 0 0 2px #fff, 0 0 8px #ffb86c, 0 0 15px #ff8c00;
         }
 
-        /* Nomes: Laranja Neon (Texto mais fino) */
+        /* Nomes Laranja */
         .sat-label {
             color: #ffb86c !important;
-            font-size: 9px !important;
+            font-size: 10px !important;
             background: none !important;
             border: none !important;
             box-shadow: none !important;
-            text-shadow: 1px 1px 2px #000;
-            font-weight: normal;
-            white-space: nowrap;
+            text-shadow: 0 0 4px #ffb86c;
+            font-weight: bold;
+            pointer-events: none;
         }
 
         .leaflet-tooltip-right:before { display: none !important; }
 
-        /* Filtro de Glow para as camadas da cauda (Menos desfoque para manter a finura) */
-        .meteor-layer {
-            filter: blur(1px); 
+        /* Classe para aplicar o filtro Neon SVG */
+        .neon-effect {
+            filter: url(#neon-glow);
             stroke-linecap: round;
-            stroke-linejoin: round;
             pointer-events: none;
         }
     </style>
@@ -52,34 +46,41 @@
 
 <div id="map"></div>
 
+<svg width="0" height="0">
+  <defs>
+    <filter id="neon-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="2" result="blur" />
+      <feColorMatrix in="blur" type="matrix" values="
+        0 0 0 0 1
+        0 0 0 0 0.72
+        0 0 0 0 0.42
+        0 0 0 1 0" result="glow"/>
+      <feMerge>
+        <feMergeNode in="glow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+</svg>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.0.0/satellite.min.js"></script>
 
 <script>
-    const map = L.map('map', { 
-        worldCopyJump: true, 
-        zoomControl: false, 
-        attributionControl: false 
-    }).setView([20, 0], 3);
-
+    const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: false }).setView([20, 0], 3);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
     const baseIcon = L.divIcon({ className: 'base-square', iconSize: [6, 6] });
-    // Reduzi o tamanho do ponto para 4x4
     const satIcon = L.divIcon({ className: 'sat-point', iconSize: [4, 4] });
 
+    // Bases
     const launchBases = [
         { name: "Kennedy Space Center", coords: [28.57, -80.64] },
-        { name: "Baikonur Cosmodrome", coords: [45.96, 63.30] },
-        { name: "Plesetsk Cosmodrome", coords: [62.92, 40.57] },
-        { name: "Kourou Space Centre", coords: [5.23, -52.76] },
-        { name: "Jiuquan Space Center", coords: [40.96, 100.29] },
-        { name: "Alcântara Launch Center", coords: [-2.37, -44.39] }
+        { name: "Baikonur", coords: [45.96, 63.30] },
+        { name: "Kourou", coords: [5.23, -52.76] },
+        { name: "Alcântara", coords: [-2.37, -44.39] }
     ];
-
-    launchBases.forEach(base => {
-        L.marker(base.coords, { icon: baseIcon }).bindPopup(base.name).addTo(map);
-    });
+    launchBases.forEach(b => L.marker(b.coords, { icon: baseIcon }).addTo(map));
 
     let satellites = [];
 
@@ -103,12 +104,11 @@
                         .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label', offset: [8, 0] })
                         .addTo(map);
 
-                    // 4 CAMADAS COM ESPESSURAS REDUZIDAS (MUITO MAIS FINAS)
+                    // 3 Camadas Finas para criar o degradê neon
                     const layers = [
-                        L.polyline([], { color: '#ff8c00', weight: 4, opacity: 0.15, className: 'meteor-layer' }).addTo(map), // Glow exterior
-                        L.polyline([], { color: '#ffb86c', weight: 2, opacity: 0.4, className: 'meteor-layer' }).addTo(map),  // Cauda média
-                        L.polyline([], { color: '#ffb86c', weight: 1, opacity: 0.6, className: 'meteor-layer' }).addTo(map),  // Linha fina
-                        L.polyline([], { color: '#ffffff', weight: 0.5, opacity: 0.8, className: 'meteor-layer' }).addTo(map) // Núcleo agulha
+                        L.polyline([], { color: '#ff8c00', weight: 3, opacity: 0.3, className: 'neon-effect' }).addTo(map), // Aura
+                        L.polyline([], { color: '#ffb86c', weight: 1.5, opacity: 0.6, className: 'neon-effect' }).addTo(map), // Cor principal
+                        L.polyline([], { color: '#fff', weight: 0.5, opacity: 0.9, className: 'neon-effect' }).addTo(map)    // Núcleo
                     ];
 
                     satellites.push({ satrec, marker, layers });
@@ -125,40 +125,32 @@
             if (posVel.position) {
                 const gmst = satellite.gstime(now);
                 const posGd = satellite.eciToGeodetic(posVel.position, gmst);
-                const curLat = satellite.degreesLat(posGd.latitude);
-                const curLng = satellite.degreesLong(posGd.longitude);
-                
-                sat.marker.setLatLng([curLat, curLng]);
+                const lat = satellite.degreesLat(posGd.latitude);
+                const lng = satellite.degreesLong(posGd.longitude);
+                sat.marker.setLatLng([lat, lng]);
 
-                // Rasto ainda mais curto para efeito meteoro focado (0.8 minutos)
-                let trailCoords = [];
-                for (let j = 0; j <= 0.8; j += 0.2) {
+                // Rasto meteoro (apenas 0.7 minutos - bem curto)
+                let coords = [];
+                for (let j = 0; j <= 0.7; j += 0.1) {
                     const pTime = new Date(now.getTime() - (j * 60000));
                     const pPv = satellite.propagate(sat.satrec, pTime);
                     if (pPv.position) {
-                        const pGmst = satellite.gstime(pTime);
-                        const pGd = satellite.eciToGeodetic(pPv.position, pGmst);
-                        trailCoords.push([satellite.degreesLat(pGd.latitude), satellite.degreesLong(pGd.longitude)]);
+                        const pGd = satellite.eciToGeodetic(pPv.position, satellite.gstime(pTime));
+                        coords.push([satellite.degreesLat(pGd.latitude), satellite.degreesLong(pGd.longitude)]);
                     }
                 }
 
-                if (trailCoords.length > 1) {
-                    const lngs = trailCoords.map(c => c[1]);
-                    if (Math.max(...lngs) - Math.min(...lngs) < 180) {
-                        // Aplicação proporcional para manter a cauda afilada e fina
-                        sat.layers[0].setLatLngs(trailCoords); 
-                        sat.layers[1].setLatLngs(trailCoords.slice(0, 3)); 
-                        sat.layers[2].setLatLngs(trailCoords.slice(0, 2)); 
-                        sat.layers[3].setLatLngs(trailCoords.slice(0, 1)); 
-                    } else {
-                        sat.layers.forEach(l => l.setLatLngs([]));
-                    }
+                if (coords.length > 1 && Math.abs(coords[0][1] - coords[coords.length-1][1]) < 180) {
+                    sat.layers[0].setLatLngs(coords); // Aura completa
+                    sat.layers[1].setLatLngs(coords.slice(0, 4)); // Cor principal
+                    sat.layers[2].setLatLngs(coords.slice(0, 2)); // Núcleo
+                } else {
+                    sat.layers.forEach(l => l.setLatLngs([]));
                 }
             }
         });
         requestAnimationFrame(updatePositions);
     }
-
     fetchTLE();
 </script>
 </body>
