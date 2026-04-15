@@ -118,13 +118,22 @@
     const satIcon = L.divIcon({ className: 'sat-point', iconSize: [4, 4] });
 
     const launchBases = [
-        { name: "Kennedy Space Center", country: "EUA", coords: [28.57, -80.64] },
-        { name: "Baikonur Cosmodrome", country: "Cazaquistão", coords: [45.96, 63.30] },
-        { name: "Plesetsk Cosmodrome", country: "Rússia", coords: [62.92, 40.57] },
-        { name: "Kourou Space Centre", country: "Guiana Francesa", coords: [5.23, -52.76] },
-        { name: "Jiuquan Space Center", country: "China", coords: [40.96, 100.29] },
-        { name: "Alcântara Launch Center", country: "Brasil", coords: [-2.37, -44.39] }
-    ];
+    { name: "Kennedy Space Center", country: "EUA", coords: [28.5721, -80.6480] },
+    { name: "Vandenberg SFB", country: "EUA", coords: [34.7420, -120.5724] },
+    { name: "Baikonur Cosmodrome", country: "Cazaquistão", coords: [45.9646, 63.3052] },
+    { name: "Plesetsk Cosmodrome", country: "Rússia", coords: [62.9257, 40.5777] },
+    { name: "Kourou (ESA)", country: "Guiana Francesa", coords: [5.2393, -52.7685] },
+    { name: "Jiuquan Center", country: "China", coords: [40.9606, 100.2983] },
+    { name: "Wenchang Site", country: "China", coords: [19.6143, 110.9510] },
+    { name: "Satish Dhawan", country: "Índia", coords: [13.7199, 80.2304] },
+    { name: "Tanegashima", country: "Japão", coords: [30.3748, 130.9577] },
+    { name: "Alcântara", country: "Brasil", coords: [-2.3400, -44.4000] },
+    { name: "Rocket Lab Complex", country: "Nova Zelândia", coords: [-39.2614, 177.8648] },
+    { name: "SpaceX Starbase", country: "EUA (Texas)", coords: [25.9973, -97.1555] },
+    { name: "SpaceX LC-39A", country: "EUA (Florida)", coords: [28.6082, -80.6041] },
+    { name: "SpaceX SLC-40", country: "EUA (Florida)", coords: [28.5619, -80.5773] },
+    { name: "SpaceX SLC-4E", country: "EUA (California)", coords: [34.6320, -120.6111] }
+];
 
     launchBases.forEach(b => {
         const content = `<span class="popup-title">${b.name}</span><div class="popup-data"><b>PAÍS:</b> ${b.country}<br><b>COORD:</b> ${b.coords[0]}, ${b.coords[1]}</div>`;
