@@ -3,20 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Satellite Tracking Map</title>
-    
+    <title>Live Satellite Tracker</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; background: #0b0d17; }
+        body, html { margin: 0; padding: 0; height: 100%; background: #050505; }
         #map { height: 100vh; width: 100%; }
         
-        /* Estilo Dark personalizado para os Popups */
-        .leaflet-popup-content-wrapper {
-            background: #1a1c23;
-            color: #fff;
-            border-radius: 5px;
+        /* Estilo das Bases (Quadrados) */
+        .base-square {
+            background-color: #00f2ff;
+            border: 1px solid #fff;
+            box-shadow: 0 0 8px #00f2ff;
         }
-        .leaflet-popup-tip { background: #1a1c23; }
+
+        /* Tooltip e Popup Dark */
+        .leaflet-popup-content-wrapper { background: #111; color: #fff; border: 1px solid #444; }
+        .leaflet-popup-tip { background: #111; }
     </style>
 </head>
 <body>
@@ -27,66 +29,97 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.0.0/satellite.min.js"></script>
 
 <script>
-    // 1. Inicializar o mapa com o tema escuro (CartoDB Dark Matter)
-    const map = L.map('map').setView([20, 0], 2);
+    // 1. Configuração do Mapa Escuro
+    const map = L.map('map', { worldCopyJump: true }).setView([20, 0], 3);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap &copy; CARTO'
+        attribution: '&copy; CARTO'
     }).addTo(map);
 
-    // 2. Ícones e Estilos conforme as tuas imagens
+    // 2. Bases de Lançamento (Quadrados conforme pedido)
     const baseIcon = L.divIcon({
-        className: 'base-marker',
-        html: '<div style="background-color: #00f2ff; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 10px #00f2ff;"></div>',
+        className: 'base-square',
         iconSize: [10, 10]
     });
 
-    // 3. Adicionar Bases de Lançamento (Exemplos baseados na imagem "bases.jpg")
     const launchBases = [
         { name: "Kennedy Space Center", coords: [28.57, -80.64] },
         { name: "Baikonur Cosmodrome", coords: [45.96, 63.30] },
-        { name: "Kourou (Guyane)", coords: [5.23, -52.76] },
-        { name: "Alcântara", coords: [-2.37, -44.39] }
+        { name: "Plesetsk Cosmodrome", coords: [62.92, 40.57] },
+        { name: "Kourou", coords: [5.23, -52.76] },
+        { name: "Jiuquan", coords: [40.96, 100.29] }
     ];
 
     launchBases.forEach(base => {
         L.marker(base.coords, { icon: baseIcon })
-            .bindPopup(`<b>Base:</b> ${base.name}`)
+            .bindPopup(`<b>Base de Lançamento:</b><br>${base.name}`)
             .addTo(map);
     });
 
-    // 4. Função para criar Satélites com Rasto (Imagem "Satelites.jpg")
-    function createSatellite(name, color) {
-        let path = [];
-        const polyline = L.polyline([], { color: color, weight: 1, opacity: 0.5 }).addTo(map);
-        const dot = L.circleMarker([0, 0], { 
-            radius: 4, 
-            color: color, 
-            fillOpacity: 1, 
-            fillColor: color 
-        }).addTo(map);
+    // 3. Lógica de Tracking em Tempo Real via TLE
+    const satellites = [];
 
-        dot.bindPopup(`<b>Satélite:</b> ${name}<br>Status: Ativo`);
+    async function fetchSatellites() {
+        // Usando o link fornecido (Nota: Pode haver erro de CORS se o Celestrak não permitir acesso direto via JS)
+        // Se falhar, usa-se um proxy ou ficheiro local
+        const response = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle');
+        const data = await response.text();
+        const lines = data.split('\n');
 
-        // Simulação de movimento (Para dados reais, usarias TLE com satellite.js)
-        let angle = Math.random() * 360;
-        setInterval(() => {
-            angle += 0.5;
-            let lat = 40 * Math.sin(angle * Math.PI / 180);
-            let lng = (angle % 360) - 180;
+        for (let i = 0; i < lines.length - 2; i += 3) {
+            const name = lines[i].trim();
+            const tle1 = lines[i+1];
+            const tle2 = lines[i+2];
             
-            const newPos = [lat, lng];
-            path.push(newPos);
-            if (path.length > 50) path.shift(); // Tamanho do rasto
-
-            dot.setLatLng(newPos);
-            polyline.setLatLngs(path);
-        }, 100);
+            if (tle1 && tle2) {
+                addSatellite(name, tle1, tle2);
+            }
+        }
     }
 
-    // Criar alguns satélites de exemplo (como o Sentinel-3A da imagem)
-    createSatellite("SENTINEL-3A", "#ff9900");
-    createSatellite("ISS", "#ffffff");
-    createSatellite("STARLINK-1024", "#00ff44");
+    function addSatellite(name, tle1, tle2) {
+        const satrec = satellite.twoline2satrec(tle1, tle2);
+        const color = name.includes('ISS') ? '#ff3300' : '#00ffcc';
+        
+        const dot = L.circleMarker([0, 0], { 
+            radius: 3, color: color, fillOpacity: 1 
+        }).addTo(map);
+        
+        const rasto = L.polyline([], { color: color, weight: 1, opacity: 0.4 }).addTo(map);
+        const history = [];
+
+        satellites.push({ satrec, dot, rasto, history, name });
+    }
+
+    function updatePositions() {
+        const now = new Date();
+        
+        satellites.forEach(sat => {
+            const positionAndVelocity = satellite.propagate(sat.satrec, now);
+            const positionEci = positionAndVelocity.position;
+            const gmst = satellite.gstime(now);
+            const positionGd = satellite.eciToGeodetic(positionEci, gmst);
+
+            const lat = satellite.degreesLat(positionGd.latitude);
+            const lng = satellite.degreesLong(positionGd.longitude);
+
+            const newPos = [lat, lng];
+            sat.dot.setLatLng(newPos);
+            
+            // Atualiza popup com dados reais
+            sat.dot.bindPopup(`<b>${sat.name}</b><br>Alt: ${positionGd.height.toFixed(2)} km`);
+
+            // Gestão do Rasto (Mantém os últimos 20 pontos para performance)
+            sat.history.push(newPos);
+            if (sat.history.length > 20) sat.history.shift();
+            sat.rasto.setLatLngs(sat.history);
+        });
+
+        requestAnimationFrame(updatePositions);
+    }
+
+    fetchSatellites().then(() => {
+        updatePositions(); // Inicia o loop de tempo real
+    });
 
 </script>
 </body>
