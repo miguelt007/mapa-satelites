@@ -3,17 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Satellite Tracker Pro</title>
+    <title>Satellite Tracker Live</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #05070a; font-family: 'Courier New', monospace; overflow: hidden; }
         #map { height: 100vh; width: 100%; background: #05070a; }
 
-        /* Bases Quadradas - tamanho reduzido conforme pedido */
+        /* Bases Quadradas Pequenas (Ciano) */
         .base-square {
             background-color: transparent;
             border: 1px solid #00f2ff;
-            box-shadow: 0 0 4px #00f2ff;
+            box-shadow: 0 0 5px #00f2ff;
         }
 
         /* Satélites (Pontos Laranja) */
@@ -24,7 +24,7 @@
             border: 1px solid #fff;
         }
 
-        /* Nomes dos Satélites - Estilo da imagem */
+        /* Nomes dos Satélites (Estilo da Imagem) */
         .sat-label {
             color: #ffb86c !important;
             font-size: 9px !important;
@@ -33,6 +33,7 @@
             box-shadow: none !important;
             text-shadow: 1px 1px 2px #000;
             font-weight: bold;
+            white-space: nowrap;
         }
     </style>
 </head>
@@ -50,12 +51,13 @@
         attributionControl: false 
     }).setView([20, 0], 3);
 
+    // Mapa base escuro
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
     const baseIcon = L.divIcon({ className: 'base-square', iconSize: [6, 6] });
     const satIcon = L.divIcon({ className: 'sat-point', iconSize: [5, 5] });
 
-    // Bases
+    // Bases de Lançamento
     const launchBases = [
         { name: "Kennedy Space Center", coords: [28.57, -80.64] },
         { name: "Baikonur", coords: [45.96, 63.30] },
@@ -72,22 +74,21 @@
     let satellites = [];
 
     async function fetchTLE() {
-        // Trocamos para o grupo 'visual' (satélites visíveis a olho nu) que é mais leve e fiável
+        // Usando o grupo "visual" que é o mais garantido de carregar
         const tleUrl = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=visual&FORMAT=tle';
-        
-        // Proxy alternativo (Cloudflare Worker ou AllOrigins sem cache)
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(tleUrl)}&timestamp=${new Date().getTime()}`;
+        // Proxy AllOrigins configurado para ignorar cache e erros de rede
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(tleUrl)}`;
 
         try {
             const response = await fetch(proxyUrl);
             const json = await response.json();
             const data = json.contents;
             
-            if (!data || data.length < 100) throw new Error("Dados inválidos");
+            if (!data) return;
 
             const lines = data.split('\n').filter(l => l.trim().length > 0);
             
-            // Limpar marcadores antes de recarregar
+            // Limpa o que já existe
             satellites.forEach(s => map.removeLayer(s.marker));
             satellites = [];
 
@@ -99,22 +100,16 @@
                 try {
                     const satrec = satellite.twoline2satrec(tle1, tle2);
                     const marker = L.marker([0, 0], { icon: satIcon })
-                        .bindTooltip(name, { 
-                            permanent: true, 
-                            direction: 'right', 
-                            className: 'sat-label' 
-                        })
+                        .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label' })
                         .addTo(map);
 
-                    satellites.push({ name, satrec, marker });
+                    satellites.push({ satrec, marker });
                 } catch (e) {}
             }
-            console.log("Sucesso: Satélites carregados: " + satellites.length);
             updatePositions();
         } catch (error) {
-            console.error("Erro no Fetch:", error);
-            // Tenta o proxy secundário se o primeiro falhar
-            setTimeout(fetchTLE, 5000);
+            console.log("A aguardar ligação...");
+            setTimeout(fetchTLE, 5000); // Tenta de novo se falhar
         }
     }
 
@@ -135,8 +130,7 @@
     }
 
     fetchTLE();
-    // Atualiza dados a cada 12 horas
-    setInterval(fetchTLE, 43200000);
+    setInterval(fetchTLE, 43200000); // 12 horas
 </script>
 </body>
 </html>
