@@ -3,55 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Satellite Tracker Pro - Live</title>
-    
+    <title>Satellite Tracker Pro</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    
     <style>
-        /* Estética baseada na tua imagem de referência */
         body, html { margin: 0; padding: 0; height: 100%; background: #05070a; font-family: 'Courier New', monospace; overflow: hidden; }
         #map { height: 100vh; width: 100%; background: #05070a; }
 
-        /* Estilo das Bases (Quadrados Ciano Brilhantes) */
-        .base-square {
-            background: none;
-            border: 1px solid #00f2ff;
-            box-shadow: 0 0 5px #00f2ff, inset 0 0 2px #00f2ff;
-        }
+        /* Estilo das Bases */
+        .base-square { border: 1px solid #00f2ff; box-shadow: 0 0 5px #00f2ff; }
 
-        /* Estilo dos Satélites (Pontos Laranja Brilhantes - IGUAL À FOTO) */
+        /* Satélites: Ponto Laranja Brilhante (Glow) */
         .sat-point {
             background-color: #ffb86c;
             border-radius: 50%;
-            /* Efeito de brilho difuso */
-            filter: blur(1.5px) drop-shadow(0 0 5px #ffb86c); 
             border: 1px solid #fff;
+            box-shadow: 0 0 10px #ffb86c, 0 0 20px #ff8c00;
         }
 
-        /* Labels dos Nomes (Texto Laranja, Sem Setas, IGUAL À FOTO) */
+        /* Nomes: Limpos e sem setas */
         .sat-label {
             color: #ffb86c !important;
             font-size: 10px !important;
             background: none !important;
             border: none !important;
             box-shadow: none !important;
-            text-shadow: 1px 1px 3px #000;
+            text-shadow: 1px 1px 2px #000;
             font-weight: bold;
             white-space: nowrap;
-            pointer-events: none;
         }
 
-        /* Removendo a seta padrão do Leaflet */
-        .leaflet-tooltip-left:before,
-        .leaflet-tooltip-right:before,
-        .leaflet-tooltip-top:before,
-        .leaflet-tooltip-bottom:before {
-            display: none !important;
-        }
-
-        /* Customização dos Popups */
-        .leaflet-popup-content-wrapper { background: rgba(10, 15, 25, 0.9); color: #00f2ff; border: 1px solid #00f2ff; border-radius: 0px; }
-        .leaflet-popup-tip { background: #00f2ff; }
+        /* Remove a seta do tooltip */
+        .leaflet-tooltip-right:before { display: none !important; }
     </style>
 </head>
 <body>
@@ -62,7 +44,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.0.0/satellite.min.js"></script>
 
 <script>
-    // 1. Inicialização do Mapa com Tema Dark
     const map = L.map('map', { 
         worldCopyJump: true, 
         zoomControl: false, 
@@ -71,118 +52,81 @@
 
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    // 2. Definição dos Ícones
-    const baseIcon = L.divIcon({ className: 'base-square', iconSize: [6, 6] });
-    // Ajustei o tamanho do ponto para parecer mais com a luz da imagem
-    const satIcon = L.divIcon({ className: 'sat-point', iconSize: [5, 5] });
+    const satIcon = L.divIcon({ className: 'sat-point', iconSize: [6, 6] });
 
-    // 3. Adicionar Bases de Lançamento
-    const launchBases = [
-        { name: "Kennedy Space Center", coords: [28.57, -80.64] },
-        { name: "Baikonur Cosmodrome", coords: [45.96, 63.30] },
-        { name: "Plesetsk Cosmodrome", coords: [62.92, 40.57] },
-        { name: "Kourou Space Centre", coords: [5.23, -52.76] },
-        { name: "Jiuquan Space Center", coords: [40.96, 100.29] },
-        { name: "Alcântara Launch Center", coords: [-2.37, -44.39] }
-    ];
-
-    launchBases.forEach(base => {
-        L.marker(base.coords, { icon: baseIcon }).bindPopup(`<b>BASE</b><br>${base.name}`).addTo(map);
-    });
-
-    // 4. Lógica de Tracking de Satélites
     let satellites = [];
 
     async function fetchTLE() {
-        // Importante: lê o ficheiro gerado pela GitHub Action
-        const url = 'data.tle'; 
-
         try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error("A aguardar ficheiro data.tle...");
-            
+            const response = await fetch('data.tle');
             const data = await response.text();
             const lines = data.split('\n').filter(l => l.trim().length > 0);
             
-            // Limpa o que já existe
-            satellites.forEach(s => {
-                map.removeLayer(s.marker);
-                map.removeLayer(s.polyline);
-            });
+            satellites.forEach(s => { map.removeLayer(s.marker); map.removeLayer(s.polyline); });
             satellites = [];
 
             for (let i = 0; i < lines.length - 2; i += 3) {
                 const name = lines[i].trim();
-                const satrec = satellite.twoline2satrec(lines[i+1].trim(), lines[i+2].trim());
+                const satrec = satellite.twoline2satrec(lines[i+1], lines[i+2]);
                 if (satrec) {
                     const marker = L.marker([0, 0], { icon: satIcon })
-                        .bindTooltip(name, { 
-                            permanent: true, 
-                            direction: 'right', 
-                            className: 'sat-label', 
-                            offset: [8, 0] // Pequeno ajuste de distância
-                        })
+                        .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label', offset: [8, 0] })
                         .addTo(map);
 
-                    // Cauda Fina e Sutil (IGUAL À FOTO)
-                    const polyline = L.polyline([], { 
-                        color: '#ffb86c', 
-                        weight: 1, // Muito fina
-                        opacity: 0.4 // Sutilmente transparente
-                    }).addTo(map);
-
+                    const polyline = L.polyline([], { color: '#ffb86c', weight: 1.5, opacity: 0.6 }).addTo(map);
                     satellites.push({ satrec, marker, polyline });
                 }
             }
             updatePositions();
-        } catch (error) { 
-            setTimeout(fetchTLE, 10000); 
-        }
+        } catch (e) { setTimeout(fetchTLE, 5000); }
     }
 
-    // Função de atualização em tempo real
     function updatePositions() {
         const now = new Date();
-        
         satellites.forEach(sat => {
             const posVel = satellite.propagate(sat.satrec, now);
             if (posVel.position) {
                 const gmst = satellite.gstime(now);
                 const posGd = satellite.eciToGeodetic(posVel.position, gmst);
-                const lat = satellite.degreesLat(posGd.latitude);
-                const lng = satellite.degreesLong(posGd.longitude);
+                const curLat = satellite.degreesLat(posGd.latitude);
+                const curLng = satellite.degreesLong(posGd.longitude);
                 
-                // Move o satélite
-                sat.marker.setLatLng([lat, lng]);
+                sat.marker.setLatLng([curLat, curLng]);
 
-                // Desenha a CAUDA CURTA (Retroativa em 5 minutos - IGUAL À FOTO)
+                // GERAÇÃO DO RASTO CURTO (5 minutos)
                 let trailCoords = [];
+                let crossAntimeridian = false;
+
                 for (let j = 0; j <= 5; j++) {
-                    // Calcula a posição do satélite j minutos atrás
                     const pastTime = new Date(now.getTime() - (j * 60000));
-                    const pastPv = satellite.propagate(sat.satrec, pastTime);
-                    
-                    if (pastPv.position) {
-                        const pastGmst = satellite.gstime(pastTime);
-                        const pastGd = satellite.eciToGeodetic(pastPv.position, pastGmst);
-                        trailCoords.push([
-                            satellite.degreesLat(pastGd.latitude),
-                            satellite.degreesLong(pastGd.longitude)
-                        ]);
+                    const pPv = satellite.propagate(sat.satrec, pastTime);
+                    if (pPv.position) {
+                        const pGmst = satellite.gstime(pastTime);
+                        const pGd = satellite.eciToGeodetic(pPv.position, pGmst);
+                        const pLat = satellite.degreesLat(pGd.latitude);
+                        const pLng = satellite.degreesLong(pGd.longitude);
+
+                        // Deteta se o rasto cruza o limite do mapa para evitar a linha horizontal
+                        if (trailCoords.length > 0) {
+                            const lastLng = trailCoords[trailCoords.length - 1][1];
+                            if (Math.abs(pLng - lastLng) > 180) crossAntimeridian = true;
+                        }
+                        trailCoords.push([pLat, pLng]);
                     }
                 }
-                // Aplica a cauda curta
-                sat.polyline.setLatLngs(trailCoords);
+
+                // Se não cruzar o limite do mapa, desenha a cauda. Se cruzar, esconde-a nesse momento.
+                if (!crossAntimeridian) {
+                    sat.polyline.setLatLngs(trailCoords);
+                } else {
+                    sat.polyline.setLatLngs([]);
+                }
             }
         });
-
         requestAnimationFrame(updatePositions);
     }
 
     fetchTLE();
-    // Atualiza o ficheiro TLE a cada 12h (já que a Action corre a cada 12h)
-    setInterval(fetchTLE, 43200000);
-
 </script>
 </body>
 </html>
