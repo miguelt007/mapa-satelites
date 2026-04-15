@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Satellite Tracking Map</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; background: #0b0d17; }
+        #map { height: 100vh; width: 100%; }
+        
+        /* Estilo Dark personalizado para os Popups */
+        .leaflet-popup-content-wrapper {
+            background: #1a1c23;
+            color: #fff;
+            border-radius: 5px;
+        }
+        .leaflet-popup-tip { background: #1a1c23; }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.0.0/satellite.min.js"></script>
+
+<script>
+    // 1. Inicializar o mapa com o tema escuro (CartoDB Dark Matter)
+    const map = L.map('map').setView([20, 0], 2);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; OpenStreetMap &copy; CARTO'
+    }).addTo(map);
+
+    // 2. Ícones e Estilos conforme as tuas imagens
+    const baseIcon = L.divIcon({
+        className: 'base-marker',
+        html: '<div style="background-color: #00f2ff; width: 10px; height: 10px; border-radius: 50%; box-shadow: 0 0 10px #00f2ff;"></div>',
+        iconSize: [10, 10]
+    });
+
+    // 3. Adicionar Bases de Lançamento (Exemplos baseados na imagem "bases.jpg")
+    const launchBases = [
+        { name: "Kennedy Space Center", coords: [28.57, -80.64] },
+        { name: "Baikonur Cosmodrome", coords: [45.96, 63.30] },
+        { name: "Kourou (Guyane)", coords: [5.23, -52.76] },
+        { name: "Alcântara", coords: [-2.37, -44.39] }
+    ];
+
+    launchBases.forEach(base => {
+        L.marker(base.coords, { icon: baseIcon })
+            .bindPopup(`<b>Base:</b> ${base.name}`)
+            .addTo(map);
+    });
+
+    // 4. Função para criar Satélites com Rasto (Imagem "Satelites.jpg")
+    function createSatellite(name, color) {
+        let path = [];
+        const polyline = L.polyline([], { color: color, weight: 1, opacity: 0.5 }).addTo(map);
+        const dot = L.circleMarker([0, 0], { 
+            radius: 4, 
+            color: color, 
+            fillOpacity: 1, 
+            fillColor: color 
+        }).addTo(map);
+
+        dot.bindPopup(`<b>Satélite:</b> ${name}<br>Status: Ativo`);
+
+        // Simulação de movimento (Para dados reais, usarias TLE com satellite.js)
+        let angle = Math.random() * 360;
+        setInterval(() => {
+            angle += 0.5;
+            let lat = 40 * Math.sin(angle * Math.PI / 180);
+            let lng = (angle % 360) - 180;
+            
+            const newPos = [lat, lng];
+            path.push(newPos);
+            if (path.length > 50) path.shift(); // Tamanho do rasto
+
+            dot.setLatLng(newPos);
+            polyline.setLatLngs(path);
+        }, 100);
+    }
+
+    // Criar alguns satélites de exemplo (como o Sentinel-3A da imagem)
+    createSatellite("SENTINEL-3A", "#ff9900");
+    createSatellite("ISS", "#ffffff");
+    createSatellite("STARLINK-1024", "#00ff44");
+
+</script>
+</body>
+</html>
