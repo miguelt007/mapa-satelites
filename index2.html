@@ -13,10 +13,10 @@
         .base-square {
             background: none;
             border: 1px solid #00f2ff;
-            box-shadow: 0 0 5px #00f2ff, inset 0 0 2px #00f2ff;
+            box-shadow: 0 0 5px #00f2ff;
         }
 
-        /* Satélites (Pontos Laranja Brilhantes) */
+        /* Satélites (Pontos Laranja) */
         .sat-point {
             background-color: #ffb86c;
             border-radius: 50%;
@@ -24,7 +24,7 @@
             border: 1px solid #fff;
         }
 
-        /* Labels dos Nomes dos Satélites */
+        /* Labels: Apenas o nome, sem setas */
         .sat-label {
             color: #ffb86c !important;
             font-size: 10px !important;
@@ -37,7 +37,6 @@
             pointer-events: none;
         }
 
-        /* Customização dos Popups */
         .leaflet-popup-content-wrapper { background: rgba(10, 15, 25, 0.9); color: #00f2ff; border: 1px solid #00f2ff; border-radius: 0px; }
         .leaflet-popup-tip { background: #00f2ff; }
     </style>
@@ -50,7 +49,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.0.0/satellite.min.js"></script>
 
 <script>
-    const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: false }).setView([20, 0], 3);
+    const map = L.map('map', { 
+        worldCopyJump: true, 
+        zoomControl: false, 
+        attributionControl: false 
+    }).setView([20, 0], 3);
+
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
     const baseIcon = L.divIcon({ className: 'base-square', iconSize: [6, 6] });
@@ -67,20 +71,22 @@
     ];
 
     launchBases.forEach(base => {
-        L.marker(base.coords, { icon: baseIcon }).bindPopup(`<b>ESTAÇÃO DE LANÇAMENTO</b><br>${base.name}`).addTo(map);
+        L.marker(base.coords, { icon: baseIcon }).bindPopup(`<b>BASE</b><br>${base.name}`).addTo(map);
     });
 
     let satellites = [];
 
     async function fetchTLE() {
+        // Importante: lê o ficheiro gerado pela tua GitHub Action
         const url = 'data.tle'; 
         try {
             const response = await fetch(url);
-            if (!response.ok) throw new Error("A aguardar ficheiro...");
+            if (!response.ok) throw new Error("A aguardar ficheiro data.tle...");
             
             const data = await response.text();
             const lines = data.split('\n').filter(l => l.trim().length > 0);
             
+            // Limpa dados antigos
             satellites.forEach(s => {
                 map.removeLayer(s.marker);
                 map.removeLayer(s.polyline);
@@ -92,23 +98,33 @@
                 const satrec = satellite.twoline2satrec(lines[i+1], lines[i+2]);
                 if (satrec) {
                     const marker = L.marker([0, 0], { icon: satIcon })
-                        .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label', offset: [10, 0] })
+                        .bindTooltip(name, { 
+                            permanent: true, 
+                            direction: 'right', 
+                            className: 'sat-label', 
+                            offset: [10, 0] 
+                        })
                         .addTo(map);
 
                     const polyline = L.polyline([], { 
-                        color: '#ffb86c', weight: 1, opacity: 0.5 
+                        color: '#ffb86c', 
+                        weight: 2, 
+                        opacity: 0.5 
                     }).addTo(map);
 
-                    const history = [];
-                    satellites.push({ satrec, marker, polyline, history });
+                    satellites.push({ satrec, marker, polyline });
                 }
             }
             updatePositions();
-        } catch (error) { setTimeout(fetchTLE, 10000); }
+        } catch (error) { 
+            console.warn(error.message);
+            setTimeout(fetchTLE, 10000); 
+        }
     }
 
     function updatePositions() {
         const now = new Date();
+        
         satellites.forEach(sat => {
             const posVel = satellite.propagate(sat.satrec, now);
             if (posVel.position) {
@@ -116,19 +132,33 @@
                 const posGd = satellite.eciToGeodetic(posVel.position, gmst);
                 const lat = satellite.degreesLat(posGd.latitude);
                 const lng = satellite.degreesLong(posGd.longitude);
-                const newPos = [lat, lng];
                 
-                sat.marker.setLatLng(newPos);
-                sat.history.push(newPos);
-                if (sat.history.length > 15) sat.history.shift();
-                sat.polyline.setLatLngs(sat.history);
+                // Atualiza posição do satélite
+                sat.marker.setLatLng([lat, lng]);
+
+                // Desenha a CAUDA LONGA (retroativa em 40 minutos)
+                let trailCoords = [];
+                for (let j = 0; j <= 40; j++) {
+                    const pastTime = new Date(now.getTime() - (j * 60000));
+                    const pastPosVel = satellite.propagate(sat.satrec, pastTime);
+                    
+                    if (pastPosVel.position) {
+                        const pastGmst = satellite.gstime(pastTime);
+                        const pastGd = satellite.eciToGeodetic(pastPosVel.position, pastGmst);
+                        trailCoords.push([
+                            satellite.degreesLat(pastGd.latitude),
+                            satellite.degreesLong(pastGd.longitude)
+                        ]);
+                    }
+                }
+                sat.polyline.setLatLngs(trailCoords);
             }
         });
         requestAnimationFrame(updatePositions);
     }
 
     fetchTLE();
-    setInterval(fetchTLE, 43200000); // 12h
+    setInterval(fetchTLE, 43200000); // Atualiza TLE a cada 12h
 </script>
 </body>
 </html>
