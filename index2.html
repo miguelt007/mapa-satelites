@@ -3,37 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Satellite Tracker Pro</title>
+    <title>Satellite Tracker Pro - Live</title>
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; background: #05070a; font-family: monospace; overflow: hidden; }
-        #map { height: 100vh; width: 100%; background: #05070a; }
+        /* Estética geral baseada nas imagens enviadas */
+        body, html { 
+            margin: 0; 
+            padding: 0; 
+            height: 100%; 
+            background: #05070a; 
+            font-family: 'Courier New', monospace; 
+            overflow: hidden; 
+        }
 
-        /* Bases Quadradas Pequenas (Ciano) */
+        #map { 
+            height: 100vh; 
+            width: 100%; 
+            background: #05070a; 
+        }
+
+        /* Estilo das Bases de Lançamento (Quadrados Ciano Pequenos) */
         .base-square {
             background: none;
             border: 1px solid #00f2ff;
-            box-shadow: 0 0 4px #00f2ff;
+            box-shadow: 0 0 5px #00f2ff, inset 0 0 2px #00f2ff;
         }
 
-        /* Satélites (Pontos Laranja) */
+        /* Estilo dos Satélites (Pontos Laranja Brilhantes) */
         .sat-point {
             background-color: #ffb86c;
             border-radius: 50%;
-            box-shadow: 0 0 6px #ffb86c;
+            box-shadow: 0 0 8px #ffb86c;
             border: 1px solid #fff;
         }
 
-        /* Labels dos Nomes (Estilo da Imagem) */
+        /* Labels dos Nomes dos Satélites (Estilo Sentinel-3A) */
         .sat-label {
             color: #ffb86c !important;
-            font-size: 9px !important;
+            font-size: 10px !important;
             background: none !important;
             border: none !important;
             box-shadow: none !important;
-            text-shadow: 1px 1px 2px #000;
+            text-shadow: 1px 1px 3px #000, -1px -1px 3px #000;
             font-weight: bold;
+            white-space: nowrap;
+            pointer-events: none; /* Não interfere no clique do mapa */
         }
+
+        /* Customização dos Popups das Bases */
+        .leaflet-popup-content-wrapper {
+            background: rgba(10, 15, 25, 0.9);
+            color: #00f2ff;
+            border: 1px solid #00f2ff;
+            border-radius: 0px;
+        }
+        .leaflet-popup-tip { background: #00f2ff; }
     </style>
 </head>
 <body>
@@ -44,43 +70,56 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.0.0/satellite.min.js"></script>
 
 <script>
-    const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: false }).setView([20, 0], 3);
+    // 1. Inicialização do Mapa com Tema Dark
+    const map = L.map('map', { 
+        worldCopyJump: true, 
+        zoomControl: false,
+        attributionControl: false 
+    }).setView([20, 0], 3);
+
+    // Camada Dark Matter da CartoDB
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
+    // 2. Definição dos Ícones
     const baseIcon = L.divIcon({ className: 'base-square', iconSize: [6, 6] });
     const satIcon = L.divIcon({ className: 'sat-point', iconSize: [5, 5] });
 
-    // Bases principais
+    // 3. Adicionar Bases de Lançamento (Quadrados)
     const launchBases = [
-        { name: "Kennedy Space Center", coords: [28.57, -80.64] },
-        { name: "Baikonur", coords: [45.96, 63.30] },
-        { name: "Kourou", coords: [5.23, -52.76] },
-        { name: "Alcântara", coords: [-2.37, -44.39] }
+        { name: "Kennedy Space Center (USA)", coords: [28.57, -80.64] },
+        { name: "Baikonur Cosmodrome (KAZ)", coords: [45.96, 63.30] },
+        { name: "Plesetsk Cosmodrome (RUS)", coords: [62.92, 40.57] },
+        { name: "Kourou Space Centre (GUY)", coords: [5.23, -52.76] },
+        { name: "Jiuquan Space Center (CHN)", coords: [40.96, 100.29] },
+        { name: "Alcântara Launch Center (BRA)", coords: [-2.37, -44.39] },
+        { name: "Tanegashima Space Center (JPN)", coords: [30.37, 130.97] }
     ];
 
     launchBases.forEach(base => {
-        L.marker(base.coords, { icon: baseIcon }).bindPopup(base.name).addTo(map);
+        L.marker(base.coords, { icon: baseIcon })
+            .bindPopup(`<b>ESTAÇÃO DE LANÇAMENTO</b><br>${base.name}`)
+            .addTo(map);
     });
 
+    // 4. Lógica de Tracking de Satélites
     let satellites = [];
 
     async function fetchTLE() {
-        // Usando o grupo "visual" que é mais estável para testes
-        const targetUrl = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=visual&FORMAT=tle';
-        
-        // Proxy que devolve apenas o texto, sem JSON, para evitar o erro "Unexpected Token"
-        const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`;
+        // O ficheiro data.tle é gerado automaticamente pela GitHub Action
+        const url = 'data.tle'; 
 
         try {
-            const response = await fetch(proxyUrl);
-            if (!response.ok) throw new Error("Falha no Proxy");
+            const response = await fetch(url);
+            if (!response.ok) throw new Error("A aguardar que a GitHub Action gere o ficheiro data.tle...");
             
             const data = await response.text();
             const lines = data.split('\n').filter(l => l.trim().length > 0);
             
+            // Limpa satélites existentes para refresh
             satellites.forEach(s => map.removeLayer(s.marker));
             satellites = [];
 
+            // Processa o ficheiro TLE (Nome, Linha 1, Linha 2)
             for (let i = 0; i < lines.length - 2; i += 3) {
                 const name = lines[i].trim();
                 const tle1 = lines[i+1].trim();
@@ -89,36 +128,57 @@
                 try {
                     const satrec = satellite.twoline2satrec(tle1, tle2);
                     const marker = L.marker([0, 0], { icon: satIcon })
-                        .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label' })
+                        .bindTooltip(name, { 
+                            permanent: true, 
+                            direction: 'right', 
+                            className: 'sat-label',
+                            offset: [10, 0]
+                        })
                         .addTo(map);
+
                     satellites.push({ satrec, marker });
-                } catch (e) {}
+                } catch (e) {
+                    // Ignora satélites com dados corrompidos
+                }
             }
-            console.log("Satélites ativos: " + satellites.length);
+            console.log("Satélites carregados: " + satellites.length);
             updatePositions();
         } catch (error) {
-            console.error("Erro ao carregar satélites:", error);
+            console.warn(error.message);
+            // Tenta recarregar a cada 10 segundos até o ficheiro existir
+            setTimeout(fetchTLE, 10000);
         }
     }
 
+    // Função de atualização de posição em Tempo Real
     function updatePositions() {
         const now = new Date();
+        
         satellites.forEach(sat => {
-            const posVel = satellite.propagate(sat.satrec, now);
-            if (posVel.position) {
+            const positionAndVelocity = satellite.propagate(sat.satrec, now);
+            const positionEci = positionAndVelocity.position;
+            
+            if (positionEci) {
                 const gmst = satellite.gstime(now);
-                const posGd = satellite.eciToGeodetic(posVel.position, gmst);
-                sat.marker.setLatLng([
-                    satellite.degreesLat(posGd.latitude),
-                    satellite.degreesLong(posGd.longitude)
-                ]);
+                const positionGd = satellite.eciToGeodetic(positionEci, gmst);
+                
+                const lat = satellite.degreesLat(positionGd.latitude);
+                const lng = satellite.degreesLong(positionGd.longitude);
+                
+                sat.marker.setLatLng([lat, lng]);
             }
         });
+
+        // Loop de animação
         requestAnimationFrame(updatePositions);
     }
 
+    // Inicia o processo
     fetchTLE();
-    setInterval(fetchTLE, 43200000); // 12h
+
+    // Atualiza o banco de dados TLE internamente a cada 12 horas (opcional, já que a Action faz o refresh)
+    setInterval(fetchTLE, 43200000);
+
 </script>
 </body>
 </html>
