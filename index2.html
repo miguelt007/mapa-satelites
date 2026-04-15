@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNC - Global Mission Control v5.2</title>
+    <title>SNC - Global Mission Control v5.3</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #020408; font-family: 'Courier New', monospace; overflow: hidden; color: #00f2ff; }
@@ -55,20 +55,12 @@
             display: none !important;
         }
 
-        /* INFRAESTRUTURA ORIGINAL */
+        /* INFRAESTRUTURA ORIGINAL (Estilo Wireframe) */
         .icon-base { border: 1px solid #ff4e00; background: rgba(255, 78, 0, 0.3); box-shadow: 0 0 5px #ff4e00; }
         .icon-dsn { border: 1px solid #39ff14; background: rgba(57, 255, 20, 0.3); transform: rotate(45deg); box-shadow: 0 0 5px #39ff14; }
 
-        /* NOVO TRIÂNGULO - MESMO LAYOUT DOS QUADRADOS */
-        .icon-special-tri {
-            width: 8px; height: 8px;
-            border-left: 1px solid #ffea00;
-            border-bottom: 1px solid #ffea00;
-            background: rgba(255, 234, 0, 0.2);
-            transform: rotate(-45deg); /* Transforma o quadrado num triângulo visual */
-            box-shadow: -2px 2px 5px rgba(255, 234, 0, 0.3);
-            margin-top: -4px; /* Ajuste de centro */
-        }
+        /* ÍCONE QUADRADO AMARELO - IDÊNTICO AOS OUTROS */
+        .icon-special-sq { border: 1px solid #ffea00; background: rgba(255, 234, 0, 0.3); box-shadow: 0 0 5px #ffea00; }
 
         /* POPUPS */
         .leaflet-popup-content-wrapper { background: #000 !important; border: 1px solid #00f2ff; border-radius: 0; color: #fff; font-size: 11px; font-family: 'Courier New'; }
@@ -114,7 +106,7 @@
 <div id="legend">
     <div class="leg-item"><div class="box icon-dsn"></div> <span>ESTRACK / DSN / TT&C</span></div>
     <div class="leg-item"><div class="box icon-base"></div> <span>Active Launch Sites</span></div>
-    <div class="leg-item"><div class="icon-special-tri" style="margin-top:0; transform: rotate(-45deg) scale(0.8);"></div> <span>Custom Sensor Site</span></div>
+    <div class="leg-item"><div class="box icon-special-sq"></div> <span>Custom Sensor Site</span></div>
 </div>
 
 <div id="map"></div>
@@ -126,9 +118,9 @@
     const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: false }).setView([20, 0], 2);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    // --- MARCADOR ESPECIAL INTEGRADO NO MESMO ESTILO ---
+    // --- MARCADOR ESPECIAL (QUADRADO AMARELO IDÊNTICO) ---
     const customCoords = [38.6944381, -9.3089739];
-    L.marker(customCoords, { icon: L.divIcon({ className: 'icon-special-tri', iconSize: [8, 8] }) })
+    L.marker(customCoords, { icon: L.divIcon({ className: 'icon-special-sq', iconSize: [7, 7] }) })
      .bindPopup(`<span class="pop-title" style="color:#ffea00; border-bottom-color:#ffea00;">Sensor Site</span><b>Coord:</b> ${customCoords[0]}, ${customCoords[1]}<br><b>Status:</b> <span style="color:#ffea00;">OPERATIONAL</span>`)
      .addTo(map);
 
