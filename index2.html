@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Satellite Tracker - Control Room</title>
+    <title>Satellite Tracker - Professional Edition</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #05070a; font-family: 'Courier New', monospace; overflow: hidden; }
         #map { height: 100vh; width: 100%; background: #05070a; }
 
-        /* Bases Quadradas Ciano */
+        /* Estilo das Bases (Quadrados Ciano) */
         .base-square { 
             background: none; 
             border: 1px solid #00f2ff; 
-            box-shadow: 0 0 8px #00f2ff, inset 0 0 2px #00f2ff; 
+            box-shadow: 0 0 8px #00f2ff; 
         }
 
-        /* Satélite: Ponto Central Pequeno e Intenso */
+        /* Estilo dos Satélites (Ponto Neon) */
         .sat-point {
             background-color: #fff;
             border-radius: 50%;
@@ -24,7 +24,6 @@
             box-shadow: 0 0 4px #fff, 0 0 10px #ffb86c, 0 0 18px #ff8c00;
         }
 
-        /* Nome do Satélite: Laranja Neon */
         .sat-label {
             color: #ffb86c !important;
             font-size: 10px !important;
@@ -36,37 +35,28 @@
             pointer-events: none;
         }
 
-        .leaflet-tooltip-right:before, .leaflet-tooltip-left:before { display: none !important; }
+        .leaflet-tooltip-right:before { display: none !important; }
 
-        /* Estilo dos Popups (Dark & Laranja) */
+        /* --- POPUPS GERAIS --- */
         .leaflet-popup-content-wrapper {
-            background: rgba(5, 7, 10, 0.95) !important;
-            color: #ffb86c !important;
-            border: 1px solid #ffb86c;
+            background: rgba(5, 7, 10, 0.9) !important;
             border-radius: 0px;
             font-family: 'Courier New', monospace;
-            box-shadow: 0 0 15px rgba(255, 184, 108, 0.2);
         }
-
-        .leaflet-popup-tip { background: #ffb86c !important; }
-
-        .popup-title {
-            border-bottom: 1px solid #ffb86c;
-            margin-bottom: 5px;
-            font-weight: bold;
-            display: block;
-            font-size: 14px;
-            text-transform: uppercase;
-        }
-
+        .popup-title { border-bottom: 1px solid; margin-bottom: 5px; font-weight: bold; display: block; font-size: 14px; text-transform: uppercase; }
         .popup-data { font-size: 11px; line-height: 1.4; }
 
-        /* Filtro Neon das Camadas */
-        .neon-meteor {
-            filter: url(#neon-glow);
-            stroke-linecap: round;
-            pointer-events: none;
-        }
+        /* --- POPUP SATÉLITE (LARANJA) --- */
+        .sat-popup .leaflet-popup-content-wrapper { border: 1px solid #ffb86c; color: #ffb86c !important; }
+        .sat-popup .leaflet-popup-tip { background: #ffb86c !important; }
+        .sat-popup .popup-title { border-color: #ffb86c; }
+
+        /* --- POPUP BASE (AZUL CIANO) --- */
+        .base-popup .leaflet-popup-content-wrapper { border: 1px solid #00f2ff; color: #00f2ff !important; }
+        .base-popup .leaflet-popup-tip { background: #00f2ff !important; }
+        .base-popup .popup-title { border-color: #00f2ff; }
+
+        .neon-meteor { filter: url(#neon-glow); stroke-linecap: round; pointer-events: none; }
     </style>
 </head>
 <body>
@@ -77,15 +67,8 @@
   <defs>
     <filter id="neon-glow" x="-50%" y="-50%" width="200%" height="200%">
       <feGaussianBlur stdDeviation="1.5" result="blur" />
-      <feColorMatrix in="blur" type="matrix" values="
-        0 0 0 0 1
-        0 0 0 0 0.72
-        0 0 0 0 0.42
-        0 0 0 1 0" result="glow"/>
-      <feMerge>
-        <feMergeNode in="glow"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 1 0 0 0 0 0.72 0 0 0 0 0.42 0 0 0 1 0" result="glow"/>
+      <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
 </svg>
@@ -94,27 +77,26 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.0.0/satellite.min.js"></script>
 
 <script>
-    const map = L.map('map', { 
-        worldCopyJump: true, 
-        zoomControl: false, 
-        attributionControl: false 
-    }).setView([20, 0], 3);
-
+    const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: false }).setView([20, 0], 3);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
     const baseIcon = L.divIcon({ className: 'base-square', iconSize: [6, 6] });
     const satIcon = L.divIcon({ className: 'sat-point', iconSize: [4, 4] });
 
+    // BASES COM PAÍS
     const launchBases = [
-        { name: "Kennedy Space Center", coords: [28.57, -80.64] },
-        { name: "Baikonur Cosmodrome", coords: [45.96, 63.30] },
-        { name: "Plesetsk Cosmodrome", coords: [62.92, 40.57] },
-        { name: "Kourou Space Centre", coords: [5.23, -52.76] },
-        { name: "Jiuquan Space Center", coords: [40.96, 100.29] },
-        { name: "Alcântara Launch Center", coords: [-2.37, -44.39] }
+        { name: "Kennedy Space Center", country: "EUA", coords: [28.57, -80.64] },
+        { name: "Baikonur Cosmodrome", country: "Cazaquistão/Rússia", coords: [45.96, 63.30] },
+        { name: "Plesetsk Cosmodrome", country: "Rússia", coords: [62.92, 40.57] },
+        { name: "Kourou Space Centre", country: "Guiana Francesa (UE)", coords: [5.23, -52.76] },
+        { name: "Jiuquan Space Center", country: "China", coords: [40.96, 100.29] },
+        { name: "Alcântara Launch Center", country: "Brasil", coords: [-2.37, -44.39] }
     ];
 
-    launchBases.forEach(b => L.marker(b.coords, { icon: baseIcon }).bindPopup(b.name).addTo(map));
+    launchBases.forEach(b => {
+        const content = `<span class="popup-title">${b.name}</span><div class="popup-data"><b>PAÍS:</b> ${b.country}<br><b>COORD:</b> ${b.coords[0]}, ${b.coords[1]}</div>`;
+        L.marker(b.coords, { icon: baseIcon }).bindPopup(content, { className: 'base-popup' }).addTo(map);
+    });
 
     let satellites = [];
 
@@ -124,19 +106,22 @@
             const data = await response.text();
             const lines = data.split('\n').filter(l => l.trim().length > 0);
             
-            satellites.forEach(s => { 
-                map.removeLayer(s.marker); 
-                s.layers.forEach(l => map.removeLayer(l));
-            });
+            satellites.forEach(s => { map.removeLayer(s.marker); s.layers.forEach(l => map.removeLayer(l)); });
             satellites = [];
 
             for (let i = 0; i < lines.length - 2; i += 3) {
                 const name = lines[i].trim();
-                const satrec = satellite.twoline2satrec(lines[i+1], lines[i+2]);
+                const line1 = lines[i+1].trim();
+                const line2 = lines[i+2].trim();
+                
+                // Extração do NORAD ID da linha 1 do TLE (caracteres 3 a 7)
+                const noradId = line1.substring(2, 7).trim();
+                
+                const satrec = satellite.twoline2satrec(line1, line2);
                 if (satrec) {
                     const marker = L.marker([0, 0], { icon: satIcon, zIndexOffset: 1000 })
                         .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label', offset: [10, 0] })
-                        .bindPopup("A calcular...", { minWidth: 160 })
+                        .bindPopup("A calcular...", { minWidth: 160, className: 'sat-popup' })
                         .addTo(map);
 
                     const layers = [
@@ -146,7 +131,7 @@
                         L.polyline([], { color: '#ffffff', weight: 0.5, opacity: 0.85, className: 'neon-meteor' }).addTo(map)
                     ];
 
-                    satellites.push({ satrec, marker, layers, name });
+                    satellites.push({ satrec, marker, layers, name, noradId });
                 }
             }
             updatePositions();
@@ -163,32 +148,28 @@
                 const lat = satellite.degreesLat(posGd.latitude);
                 const lng = satellite.degreesLong(posGd.longitude);
                 const alt = posGd.height;
-
                 const vel = Math.sqrt(Math.pow(posVel.velocity.x, 2) + Math.pow(posVel.velocity.y, 2) + Math.pow(posVel.velocity.z, 2));
 
                 sat.marker.setLatLng([lat, lng]);
 
-                // Atualização do Popup em Tempo Real
                 if (sat.marker.getPopup() && sat.marker.isPopupOpen()) {
                     sat.marker.setPopupContent(`
                         <span class="popup-title">${sat.name}</span>
                         <div class="popup-data">
-                            <b>ALT:</b> ${alt.toFixed(2)} km<br>
-                            <b>VEL:</b> ${vel.toFixed(2)} km/s<br>
-                            <b>LAT:</b> ${lat.toFixed(4)}<br>
-                            <b>LNG:</b> ${lng.toFixed(4)}
+                            <b>NORAD ID:</b> ${sat.noradId}<br>
+                            <b>ALTITUDE:</b> ${alt.toFixed(2)} km<br>
+                            <b>VELOCID.:</b> ${vel.toFixed(2)} km/s<br>
+                            <b>LAT/LNG :</b> ${lat.toFixed(3)}, ${lng.toFixed(3)}
                         </div>
                     `);
                 }
 
-                // Rasto Neon Afilado
                 let coords = [];
                 for (let j = 0; j <= 0.7; j += 0.1) {
                     const pTime = new Date(now.getTime() - (j * 60000));
                     const pPv = satellite.propagate(sat.satrec, pTime);
                     if (pPv.position) {
-                        const pGmst = satellite.gstime(pTime);
-                        const pGd = satellite.eciToGeodetic(pPv.position, pGmst);
+                        const pGd = satellite.eciToGeodetic(pPv.position, satellite.gstime(pTime));
                         coords.push([satellite.degreesLat(pGd.latitude), satellite.degreesLong(pGd.longitude)]);
                     }
                 }
