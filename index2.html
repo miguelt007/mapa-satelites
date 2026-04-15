@@ -3,42 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Satellite Tracker - Heavy Duty Edition</title>
+    <title>Satellite Tracker - Mission Control Full</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #05070a; font-family: 'Courier New', monospace; overflow: hidden; }
         #map { height: 100vh; width: 100%; background: #05070a; }
 
-        /* Painel de Controlo */
+        /* PAINEL DE CONTROLO */
         #control-panel {
             position: absolute; top: 10px; left: 10px; z-index: 1000;
             background: rgba(5, 7, 10, 0.9); border: 1px solid #ffb86c;
-            padding: 15px; color: #ffb86c; width: 260px;
+            padding: 15px; color: #ffb86c; width: 280px;
             box-shadow: 0 0 15px rgba(255, 184, 108, 0.1);
         }
 
         .clock-section { border-bottom: 1px solid #ffb86c; padding-bottom: 10px; margin-bottom: 10px; }
         .clock-section span { font-weight: bold; color: #fff; text-shadow: 0 0 5px #ffb86c; }
 
-        #sat-search {
+        .category-section { margin-bottom: 10px; border-bottom: 1px solid rgba(255, 184, 108, 0.3); padding-bottom: 10px; }
+        select#sat-category, #sat-search {
             width: 100%; background: #111; border: 1px solid #ffb86c;
             color: #ffb86c; padding: 5px; font-family: 'Courier New', monospace;
-            font-size: 12px; box-sizing: border-box;
+            margin-top: 5px; box-sizing: border-box;
         }
 
-        .filter-section { max-height: 300px; overflow-y: auto; margin-top: 10px; scrollbar-width: thin; scrollbar-color: #ffb86c #05070a; }
-        .sat-item { font-size: 11px; display: flex; align-items: center; margin-bottom: 4px; padding: 2px; }
-        .sat-item:hover { background: rgba(255, 184, 108, 0.1); }
+        .filter-section { max-height: 250px; overflow-y: auto; margin-top: 10px; scrollbar-width: thin; scrollbar-color: #ffb86c #05070a; }
+        .sat-item { font-size: 11px; display: flex; align-items: center; margin-bottom: 5px; }
         .sat-item input { margin-right: 8px; accent-color: #ffb86c; }
 
-        /* Estilos Leaflet Otimizados */
-        .sat-point { background-color: #fff; border-radius: 50%; border: 1px solid #ffb86c; box-shadow: 0 0 4px #ffb86c; }
-        .sat-label { color: #ffb86c !important; font-size: 9px !important; background: none !important; border: none !important; box-shadow: none !important; text-shadow: 1px 1px 2px #000; font-weight: bold; pointer-events: none; }
+        /* ESTILOS DOS PONTOS E NOMES */
+        .base-square { background: none; border: 1px solid #00f2ff; box-shadow: 0 0 8px #00f2ff; }
+        .sat-point { background-color: #fff; border-radius: 50%; border: 1px solid #ffb86c; box-shadow: 0 0 4px #fff, 0 0 10px #ffb86c, 0 0 18px #ff8c00; }
+        .sat-label { 
+            color: #ffb86c !important; font-size: 10px !important; background: none !important; 
+            border: none !important; box-shadow: none !important; text-shadow: 0 0 4px #ffb86c, 1px 1px 2px #000; 
+            font-weight: bold; pointer-events: none; 
+        }
+
+        /* POPUPS */
+        .leaflet-popup-content-wrapper { background: rgba(5, 7, 10, 0.95) !important; border-radius: 0px; font-family: 'Courier New', monospace; }
+        .popup-title { border-bottom: 1px solid; margin-bottom: 5px; font-weight: bold; display: block; font-size: 14px; text-transform: uppercase; }
+        .popup-data { font-size: 11px; line-height: 1.4; }
         
-        /* Popup Estilizado */
-        .leaflet-popup-content-wrapper { background: rgba(5, 7, 10, 0.95) !important; border-radius: 0px; font-family: 'Courier New', monospace; border: 1px solid #ffb86c; color: #ffb86c !important; }
-        .popup-title { border-bottom: 1px solid #ffb86c; margin-bottom: 5px; font-weight: bold; display: block; }
-        
+        .sat-popup .leaflet-popup-content-wrapper { border: 1px solid #ffb86c; color: #ffb86c !important; }
+        .sat-popup .leaflet-popup-tip { background: #ffb86c !important; }
+        .base-popup .leaflet-popup-content-wrapper { border: 1px solid #00f2ff; color: #00f2ff !important; }
+        .base-popup .leaflet-popup-tip { background: #00f2ff !important; }
+
         .neon-meteor { filter: url(#neon-glow); stroke-linecap: round; pointer-events: none; }
     </style>
 </head>
@@ -49,17 +60,32 @@
         <div>UTC: <span id="utc-clock">00:00:00</span></div>
         <div>LOC: <span id="local-clock">00:00:00</span></div>
     </div>
-    <input type="text" id="sat-search" placeholder="PESQUISAR NOME / NORAD ID..." onkeyup="filterList()">
-    <div class="filter-section" id="sat-list">A carregar TLE...</div>
+    
+    <div class="category-section">
+        <label style="font-size: 10px;">SELECIONAR GRUPO:</label>
+        <select id="sat-category" onchange="loadCategory(this.value)">
+            <option value="stations">Estações Espaciais</option>
+            <option value="active">TODOS OS ATIVOS (Pesado)</option>
+            <option value="starlink">Starlink</option>
+            <option value="visual">Visíveis Brilhantes</option>
+            <option value="gps-ops">GPS</option>
+        </select>
+        <input type="text" id="sat-search" placeholder="PROCURAR NOME / ID..." onkeyup="filterSatList()">
+    </div>
+
+    <div class="filter-section">
+        <div id="sat-list"></div>
+    </div>
 </div>
 
 <div id="map"></div>
 
 <svg width="0" height="0">
   <defs>
-    <filter id="neon-glow">
-      <feGaussianBlur stdDeviation="1" result="blur" />
-      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    <filter id="neon-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="1.5" result="blur" />
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 1 0 0 0 0 0.72 0 0 0 0 0.42 0 0 0 1 0" result="glow"/>
+      <feMerge><feMergeNode in="glow"/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
   </defs>
 </svg>
@@ -71,32 +97,45 @@
     const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: false }).setView([20, 0], 3);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
+    const baseIcon = L.divIcon({ className: 'base-square', iconSize: [6, 6] });
     const satIcon = L.divIcon({ className: 'sat-point', iconSize: [4, 4] });
+
+    // BASES DE VOLTA
+    const launchBases = [
+        { name: "Kennedy Space Center", country: "EUA", coords: [28.57, -80.64] },
+        { name: "Baikonur Cosmodrome", country: "Cazaquistão", coords: [45.96, 63.30] },
+        { name: "Plesetsk Cosmodrome", country: "Rússia", coords: [62.92, 40.57] },
+        { name: "Kourou Space Centre", country: "Guiana Francesa", coords: [5.23, -52.76] },
+        { name: "Jiuquan Space Center", country: "China", coords: [40.96, 100.29] },
+        { name: "Alcântara Launch Center", country: "Brasil", coords: [-2.37, -44.39] }
+    ];
+
+    launchBases.forEach(b => {
+        const content = `<span class="popup-title">${b.name}</span><div class="popup-data"><b>PAÍS:</b> ${b.country}<br><b>COORD:</b> ${b.coords[0]}, ${b.coords[1]}</div>`;
+        L.marker(b.coords, { icon: baseIcon }).bindPopup(content, { className: 'base-popup' }).addTo(map);
+    });
+
     let satellites = [];
 
-    // Relógio
-    setInterval(() => {
-        const now = new Date();
-        document.getElementById('utc-clock').innerText = now.toISOString().substr(11, 8);
-        document.getElementById('local-clock').innerText = now.toLocaleTimeString('pt-PT');
-    }, 1000);
+    async function loadCategory(group) {
+        satellites.forEach(s => { map.removeLayer(s.marker); s.layers.forEach(l => map.removeLayer(l)); });
+        satellites = [];
+        document.getElementById('sat-list').innerHTML = 'A carregar...';
 
-    async function fetchTLE() {
+        const url = group === 'active' ? 'data.tle' : `https://celestrak.org/NORAD/elements/gp.php?GROUP=${group}&FORMAT=tle`;
+        
         try {
-            // USAR O TEU FICHEIRO LOCAL DATA.TLE (Onde colaste o conteúdo do link da Celestrak)
-            const response = await fetch('data.tle');
+            const response = await fetch(url);
             const data = await response.text();
-            processData(data);
-        } catch (e) { document.getElementById('sat-list').innerText = "Erro ao ler data.tle"; }
+            processTLE(data);
+        } catch (e) { document.getElementById('sat-list').innerHTML = 'Erro ao carregar dados.'; }
     }
 
-    function processData(data) {
+    function processTLE(data) {
         const lines = data.split('\n').filter(l => l.trim().length > 0);
-        const listDiv = document.getElementById('sat-list');
-        listDiv.innerHTML = '';
-        
-        // Limitar processamento inicial para performance (apenas os primeiros 300 ativos)
-        // Se quiseres TODOS, remove o .slice(0, 900), mas o mapa pode ficar lento.
+        const satListDiv = document.getElementById('sat-list');
+        satListDiv.innerHTML = '';
+
         for (let i = 0; i < lines.length - 2; i += 3) {
             const name = lines[i].trim();
             const l1 = lines[i+1];
@@ -105,57 +144,56 @@
             const satrec = satellite.twoline2satrec(l1, l2);
 
             if (satrec) {
-                const marker = L.marker([0, 0], { icon: satIcon })
-                    .bindTooltip(name, { permanent: false, direction: 'right', className: 'sat-label' })
-                    .bindPopup("Calculando...", { className: 'sat-popup' });
-
+                const marker = L.marker([0, 0], { icon: satIcon, zIndexOffset: 1000 })
+                    .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label', offset: [10, 0] })
+                    .bindPopup("Calculando...", { minWidth: 160, className: 'sat-popup' });
+                
                 const layers = [
-                    L.polyline([], { color: '#ff8c00', weight: 3, opacity: 0.2, className: 'neon-meteor' }),
-                    L.polyline([], { color: '#ffb86c', weight: 1.5, opacity: 0.4, className: 'neon-meteor' }),
-                    L.polyline([], { color: '#ffffff', weight: 0.5, opacity: 0.8, className: 'neon-meteor' })
+                    L.polyline([], { color: '#ff8c00', weight: 3.5, opacity: 0.15, className: 'neon-meteor' }),
+                    L.polyline([], { color: '#ffb86c', weight: 2.0, opacity: 0.35, className: 'neon-meteor' }),
+                    L.polyline([], { color: '#ffb86c', weight: 1.0, opacity: 0.60, className: 'neon-meteor' }),
+                    L.polyline([], { color: '#ffffff', weight: 0.5, opacity: 0.85, className: 'neon-meteor' })
                 ];
 
-                const satObj = { satrec, marker, layers, name, noradId, visible: true, onMap: false };
+                const satObj = { satrec, marker, layers, name, noradId, visible: false };
                 satellites.push(satObj);
 
-                // Criar elemento de lista
                 const div = document.createElement('div');
                 div.className = 'sat-item';
-                div.innerHTML = `<input type="checkbox" onchange="toggleSat(${satellites.length-1}, this.checked)"> ${name}`;
                 div.setAttribute('data-search', (name + noradId).toUpperCase());
-                listDiv.appendChild(div);
+                div.innerHTML = `<input type="checkbox"> <span>${name} [${noradId}]</span>`;
                 
-                // Por defeito, não adicionamos todos ao mapa para não crashar
-                // Ativa apenas os primeiros 50
-                if (satellites.length < 50) {
-                    toggleSat(satellites.length-1, true);
+                div.querySelector('input').onchange = (e) => toggleSat(satObj, e.target.checked);
+                satListDiv.appendChild(div);
+
+                // ATIVA OS PRIMEIROS 20 AUTOMATICAMENTE
+                if (satellites.length <= 20) {
+                    toggleSat(satObj, true);
                     div.querySelector('input').checked = true;
                 }
             }
         }
-        update();
     }
 
-    function toggleSat(index, show) {
-        const s = satellites[index];
-        s.visible = show;
+    function toggleSat(sat, show) {
+        sat.visible = show;
         if (show) {
-            s.marker.addTo(map);
-            s.layers.forEach(l => l.addTo(map));
+            sat.marker.addTo(map);
+            sat.layers.forEach(l => l.addTo(map));
         } else {
-            map.removeLayer(s.marker);
-            s.layers.forEach(l => map.removeLayer(l));
+            map.removeLayer(sat.marker);
+            sat.layers.forEach(l => map.removeLayer(l));
         }
     }
 
-    function filterList() {
+    function filterSatList() {
         const q = document.getElementById('sat-search').value.toUpperCase();
         document.querySelectorAll('.sat-item').forEach(item => {
             item.style.display = item.getAttribute('data-search').includes(q) ? 'flex' : 'none';
         });
     }
 
-    function update() {
+    function updatePositions() {
         const now = new Date();
         const gmst = satellite.gstime(now);
 
@@ -169,30 +207,49 @@
                 sat.marker.setLatLng([lat, lng]);
 
                 if (sat.marker.isPopupOpen()) {
-                    sat.marker.setPopupContent(`<b class="popup-title">${sat.name}</b>NORAD: ${sat.noradId}<br>ALT: ${posGd.height.toFixed(2)}km`);
+                    const vel = Math.sqrt(Math.pow(posVel.velocity.x, 2) + Math.pow(posVel.velocity.y, 2) + Math.pow(posVel.velocity.z, 2));
+                    sat.marker.setPopupContent(`
+                        <span class="popup-title">${sat.name}</span>
+                        <div class="popup-data">
+                            <b>NORAD ID:</b> ${sat.noradId}<br>
+                            <b>ALTITUDE:</b> ${posGd.height.toFixed(2)} km<br>
+                            <b>VELOCID.:</b> ${vel.toFixed(2)} km/s<br>
+                            <b>LAT/LNG :</b> ${lat.toFixed(3)}, ${lng.toFixed(3)}
+                        </div>
+                    `);
                 }
 
-                // Rasto (Apenas se estiver visível no ecrã para poupar CPU)
-                if (map.getBounds().contains(sat.marker.getLatLng())) {
-                    let coords = [];
-                    for (let j = 0; j <= 0.5; j += 0.2) {
-                        const pTime = new Date(now.getTime() - (j * 60000));
-                        const pPv = satellite.propagate(sat.satrec, pTime);
-                        if (pPv.position) {
-                            const pGd = satellite.eciToGeodetic(pPv.position, satellite.gstime(pTime));
-                            coords.push([satellite.degreesLat(pGd.latitude), satellite.degreesLong(pGd.longitude)]);
-                        }
+                // Rasto Neon de volta (Otimizado)
+                let coords = [];
+                for (let j = 0; j <= 0.6; j += 0.15) {
+                    const pTime = new Date(now.getTime() - (j * 60000));
+                    const pPv = satellite.propagate(sat.satrec, pTime);
+                    if (pPv.position) {
+                        const pGmst = satellite.gstime(pTime);
+                        const pGd = satellite.eciToGeodetic(pPv.position, pGmst);
+                        coords.push([satellite.degreesLat(pGd.latitude), satellite.degreesLong(pGd.longitude)]);
                     }
+                }
+                if (coords.length > 1 && Math.abs(coords[0][1] - coords[coords.length-1][1]) < 180) {
                     sat.layers[0].setLatLngs(coords);
-                    sat.layers[1].setLatLngs(coords.slice(0, 2));
-                    sat.layers[2].setLatLngs(coords.slice(0, 1));
+                    sat.layers[1].setLatLngs(coords.slice(0, 3));
+                    sat.layers[2].setLatLngs(coords.slice(0, 2));
+                    sat.layers[3].setLatLngs(coords.slice(0, 1));
                 }
             }
         });
-        requestAnimationFrame(update);
+        requestAnimationFrame(updatePositions);
     }
 
-    fetchTLE();
+    // RELÓGIO
+    setInterval(() => {
+        const now = new Date();
+        document.getElementById('utc-clock').innerText = now.toISOString().substr(11, 8);
+        document.getElementById('local-clock').innerText = now.toLocaleTimeString('pt-PT');
+    }, 1000);
+
+    loadCategory('stations');
+    updatePositions();
 </script>
 </body>
 </html>
