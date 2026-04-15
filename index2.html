@@ -3,46 +3,45 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Satellite Tracker Pro - Neon Edition</title>
+    <title>Satellite Tracker Pro - Meteor Trail</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #05070a; font-family: 'Courier New', monospace; overflow: hidden; }
         #map { height: 100vh; width: 100%; background: #05070a; }
 
         /* Bases Quadradas Ciano */
-        .base-square {
-            background: none;
-            border: 1px solid #00f2ff;
-            box-shadow: 0 0 5px #00f2ff, inset 0 0 2px #00f2ff;
-        }
+        .base-square { border: 1px solid #00f2ff; box-shadow: 0 0 5px #00f2ff; }
 
-        /* Satélites (Pontos Laranja Brilhantes - Efeito Neon) */
+        /* Satélites: Ponto Laranja com Brilho Intenso */
         .sat-point {
             background-color: #ffb86c;
             border-radius: 50%;
-            /* Camadas de sombra para criar o brilho difuso (Glow) */
-            box-shadow: 0 0 5px #ffb86c, 0 0 10px #ffb86c, 0 0 15px #ffb86c;
             border: 1px solid #fff;
+            box-shadow: 0 0 12px #ffb86c, 0 0 20px #ff8c00;
+            z-index: 1000 !important;
         }
 
-        /* Labels dos Nomes (Texto Laranja, Sem Setas) */
+        /* Nomes: Laranja e sem setas */
         .sat-label {
             color: #ffb86c !important;
             font-size: 10px !important;
             background: none !important;
             border: none !important;
             box-shadow: none !important;
-            /* Sombra no texto para legibilidade */
-            text-shadow: 1px 1px 2px #000, -1px -1px 2px #000; 
+            text-shadow: 1px 1px 2px #000;
             font-weight: bold;
             white-space: nowrap;
-            pointer-events: none;
         }
 
-        /* Removendo a seta padrão do Leaflet */
-        .leaflet-tooltip-left:before,
-        .leaflet-tooltip-right:before {
-            display: none !important;
+        .leaflet-tooltip-right:before { display: none !important; }
+
+        /* Estilo da Cauda de Meteoro (Gradiente via Máscara) */
+        .meteor-trail {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 0;
+            /* Filtro de brilho para a cauda */
+            filter: drop-shadow(0 0 3px #ffb86c);
+            stroke-linecap: round;
         }
     </style>
 </head>
@@ -50,55 +49,29 @@
 
 <div id="map"></div>
 
-<svg width="0" height="0">
-    <defs>
-        <filter id="glow">
-            <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
-            <feMerge>
-                <feMergeNode in="coloredBlur"/>
-                <feMergeNode in="SourceGraphic"/>
-            </feMerge>
-        </filter>
-    </defs>
-</svg>
-
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.0.0/satellite.min.js"></script>
 
 <script>
-    const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: false }).setView([20, 0], 3);
+    const map = L.map('map', { 
+        worldCopyJump: true, 
+        zoomControl: false, 
+        attributionControl: false 
+    }).setView([20, 0], 3);
+
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    const baseIcon = L.divIcon({ className: 'base-square', iconSize: [6, 6] });
-    const satIcon = L.divIcon({ className: 'sat-point', iconSize: [5, 5] });
-
-    // Bases principais
-    const launchBases = [
-        { name: "Kennedy Space Center", coords: [28.57, -80.64] },
-        { name: "Baikonur Cosmodrome", coords: [45.96, 63.30] },
-        { name: "Kourou Space Centre", coords: [5.23, -52.76] },
-        { name: "Alcântara Launch Center", coords: [-2.37, -44.39] }
-    ];
-
-    launchBases.forEach(base => {
-        L.marker(base.coords, { icon: baseIcon }).addTo(map);
-    });
+    const satIcon = L.divIcon({ className: 'sat-point', iconSize: [6, 6] });
 
     let satellites = [];
 
     async function fetchTLE() {
-        const url = 'data.tle'; 
         try {
-            const response = await fetch(url);
-            if (!response.ok) throw new Error("A aguardar ficheiro...");
-            
+            const response = await fetch('data.tle');
             const data = await response.text();
             const lines = data.split('\n').filter(l => l.trim().length > 0);
             
-            satellites.forEach(s => {
-                map.removeLayer(s.marker);
-                map.removeLayer(s.polyline);
-            });
+            satellites.forEach(s => { map.removeLayer(s.marker); map.removeLayer(s.polyline); });
             satellites = [];
 
             for (let i = 0; i < lines.length - 2; i += 3) {
@@ -106,30 +79,22 @@
                 const satrec = satellite.twoline2satrec(lines[i+1], lines[i+2]);
                 if (satrec) {
                     const marker = L.marker([0, 0], { icon: satIcon })
-                        .bindTooltip(name, { 
-                            permanent: true, 
-                            direction: 'right', 
-                            className: 'sat-label',
-                            offset: [10, 0] 
-                        })
+                        .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label', offset: [10, 0] })
                         .addTo(map);
 
-                    // Cauda Fina com Efeito Neon (IGUAL À FOTO)
+                    // A cauda começa com opacidade menor (0.8)
                     const polyline = L.polyline([], { 
                         color: '#ffb86c', 
-                        weight: 1.5, // Fina
-                        opacity: 0.8, // Brilhante
-                        className: 'neon-trail' // Classe para aplicar o filtro SVG
+                        weight: 2, 
+                        opacity: 0.7,
+                        className: 'meteor-trail' 
                     }).addTo(map);
-
-                    // Aplicar o filtro SVG de brilho à linha
-                    polyline.getElement().style.filter = "url(#glow)";
 
                     satellites.push({ satrec, marker, polyline });
                 }
             }
             updatePositions();
-        } catch (error) { setTimeout(fetchTLE, 10000); }
+        } catch (e) { setTimeout(fetchTLE, 5000); }
     }
 
     function updatePositions() {
@@ -139,28 +104,29 @@
             if (posVel.position) {
                 const gmst = satellite.gstime(now);
                 const posGd = satellite.eciToGeodetic(posVel.position, gmst);
-                const lat = satellite.degreesLat(posGd.latitude);
-                const lng = satellite.degreesLong(posGd.longitude);
-                sat.marker.setLatLng([lat, lng]);
+                const curLat = satellite.degreesLat(posGd.latitude);
+                const curLng = satellite.degreesLong(posGd.longitude);
+                
+                sat.marker.setLatLng([curLat, curLng]);
 
-                // RASTO CURTO (5 MINUTOS - IGUAL À FOTO)
+                // RASTO MUITO CURTO (2 minutos para efeito de meteoro)
                 let trailCoords = [];
-                for (let j = 0; j <= 5; j++) {
+                for (let j = 0; j <= 2; j++) {
                     const pastTime = new Date(now.getTime() - (j * 60000));
-                    const pastPv = satellite.propagate(sat.satrec, pastTime);
-                    if (pastPv.position) {
+                    const pPv = satellite.propagate(sat.satrec, pastTime);
+                    if (pPv.position) {
                         const pGmst = satellite.gstime(pastTime);
-                        const pGd = satellite.eciToGeodetic(pastPv.position, pGmst);
+                        const pGd = satellite.eciToGeodetic(pPv.position, pGmst);
                         trailCoords.push([satellite.degreesLat(pGd.latitude), satellite.degreesLong(pGd.longitude)]);
                     }
                 }
-                // Verificação básica para não desenhar rasto que cruza o mapa
+
+                // Impede o rasto de "esticar" no fim do mapa
                 const lngs = trailCoords.map(c => c[1]);
-                const maxDiff = Math.max(...lngs) - Math.min(...lngs);
-                if (maxDiff < 180) {
+                if (Math.max(...lngs) - Math.min(...lngs) < 180) {
                     sat.polyline.setLatLngs(trailCoords);
                 } else {
-                    sat.polyline.setLatLngs([]); // Esconde o rasto no cruzamento
+                    sat.polyline.setLatLngs([]);
                 }
             }
         });
