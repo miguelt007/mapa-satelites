@@ -9,22 +9,22 @@
         body, html { margin: 0; padding: 0; height: 100%; background: #05070a; font-family: 'Courier New', monospace; overflow: hidden; }
         #map { height: 100vh; width: 100%; background: #05070a; }
 
-        /* Bases ainda menores como pediste */
+        /* Bases Quadradas Pequenas */
         .base-square {
             background-color: transparent;
-            border: 1.5px solid #00f2ff;
-            box-shadow: 0 0 5px #00f2ff;
+            border: 1px solid #00f2ff;
+            box-shadow: 0 0 4px #00f2ff;
         }
 
-        /* Satélites (Pontos Laranja da imagem) */
+        /* Satélites (Pontos Laranja) */
         .sat-point {
             background-color: #ffb86c;
             border-radius: 50%;
-            box-shadow: 0 0 8px #ffb86c;
+            box-shadow: 0 0 6px #ffb86c;
             border: 1px solid #fff;
         }
 
-        /* Nomes dos Satélites conforme a imagem */
+        /* Nomes dos Satélites */
         .sat-label {
             color: #ffb86c !important;
             font-size: 9px !important;
@@ -33,10 +33,8 @@
             box-shadow: none !important;
             text-shadow: 1px 1px 2px #000;
             font-weight: bold;
-            margin-left: 5px;
         }
 
-        /* Estilo Dark */
         .leaflet-container { background: #05070a !important; }
     </style>
 </head>
@@ -54,13 +52,13 @@
         attributionControl: false 
     }).setView([20, 0], 3);
 
-    // Camada de mapa ultra escura
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    const baseIcon = L.divIcon({ className: 'base-square', iconSize: [8, 8] }); // Tamanho reduzido
+    // Ícones
+    const baseIcon = L.divIcon({ className: 'base-square', iconSize: [6, 6] });
     const satIcon = L.divIcon({ className: 'sat-point', iconSize: [5, 5] });
 
-    // Bases de Lançamento
+    // Bases
     const launchBases = [
         { name: "Kennedy Space Center", coords: [28.57, -80.64] },
         { name: "Baikonur", coords: [45.96, 63.30] },
@@ -78,19 +76,22 @@
 
     async function fetchTLE() {
         const tleUrl = 'https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle';
-        
-        // ATENÇÃO: Se o link direto falhar no GitHub, é OBRIGATÓRIO usar um proxy 
-        // porque o Celestrak bloqueia navegadores. Usei o mais estável aqui:
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(tleUrl)}`;
+        // Novo Proxy mais rápido e estável
+        const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(tleUrl)}`;
 
         try {
             const response = await fetch(proxyUrl);
-            const json = await response.json();
-            const data = json.contents;
+            if (!response.ok) throw new Error("Erro na resposta do servidor");
             
+            // Lemos como TEXTO puro para evitar o erro de JSON "Oops..."
+            const data = await response.text();
+            
+            if (data.includes("Oops") || data.length < 100) {
+                throw new Error("Proxy retornou erro ou dados insuficientes");
+            }
+
             const lines = data.split('\n').filter(l => l.trim().length > 0);
             
-            // Limpa marcadores antigos
             satellites.forEach(s => map.removeLayer(s.marker));
             satellites = [];
 
@@ -115,6 +116,8 @@
             updatePositions();
         } catch (error) {
             console.error("Erro ao carregar dados:", error);
+            // Se falhar, tenta novamente em 30 segundos
+            setTimeout(fetchTLE, 30000);
         }
     }
 
@@ -136,10 +139,8 @@
         requestAnimationFrame(updatePositions);
     }
 
-    // Carrega dados agora
     fetchTLE();
-    
-    // Atualiza a cada 12 horas (12h * 60m * 60s * 1000ms)
+    // Atualiza dados a cada 12 horas
     setInterval(fetchTLE, 43200000);
 
 </script>
