@@ -133,8 +133,7 @@
     { name: "SpaceX LC-39A", country: "EUA (Florida)", coords: [28.6082, -80.6041] },
     { name: "SpaceX SLC-40", country: "EUA (Florida)", coords: [28.5619, -80.5773] },
     { name: "SpaceX SLC-4E", country: "EUA (California)", coords: [34.6320, -120.6111] }
-];
-
+    ];
     launchBases.forEach(b => {
         const content = `<span class="popup-title">${b.name}</span><div class="popup-data"><b>PAÍS:</b> ${b.country}<br><b>COORD:</b> ${b.coords[0]}, ${b.coords[1]}</div>`;
         L.marker(b.coords, { icon: baseIcon }).bindPopup(content, { className: 'base-popup' }).addTo(map);
