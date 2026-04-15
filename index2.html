@@ -3,10 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Satellite Tracker - Meteor Neon Pro</title>
+    <title>Satellite Tracker - Control Room</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; background: #05070a; overflow: hidden; }
+        body, html { margin: 0; padding: 0; height: 100%; background: #05070a; font-family: 'Courier New', monospace; overflow: hidden; }
         #map { height: 100vh; width: 100%; background: #05070a; }
 
         /* Bases Quadradas Ciano */
@@ -24,7 +24,7 @@
             box-shadow: 0 0 4px #fff, 0 0 10px #ffb86c, 0 0 18px #ff8c00;
         }
 
-        /* Nome do Satélite: Laranja Neon, Sem Setas */
+        /* Nome do Satélite: Laranja Neon */
         .sat-label {
             color: #ffb86c !important;
             font-size: 10px !important;
@@ -38,7 +38,30 @@
 
         .leaflet-tooltip-right:before, .leaflet-tooltip-left:before { display: none !important; }
 
-        /* Classe para o Filtro Neon das Camadas */
+        /* Estilo dos Popups (Dark & Laranja) */
+        .leaflet-popup-content-wrapper {
+            background: rgba(5, 7, 10, 0.95) !important;
+            color: #ffb86c !important;
+            border: 1px solid #ffb86c;
+            border-radius: 0px;
+            font-family: 'Courier New', monospace;
+            box-shadow: 0 0 15px rgba(255, 184, 108, 0.2);
+        }
+
+        .leaflet-popup-tip { background: #ffb86c !important; }
+
+        .popup-title {
+            border-bottom: 1px solid #ffb86c;
+            margin-bottom: 5px;
+            font-weight: bold;
+            display: block;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+
+        .popup-data { font-size: 11px; line-height: 1.4; }
+
+        /* Filtro Neon das Camadas */
         .neon-meteor {
             filter: url(#neon-glow);
             stroke-linecap: round;
@@ -82,7 +105,6 @@
     const baseIcon = L.divIcon({ className: 'base-square', iconSize: [6, 6] });
     const satIcon = L.divIcon({ className: 'sat-point', iconSize: [4, 4] });
 
-    // Bases de Lançamento
     const launchBases = [
         { name: "Kennedy Space Center", coords: [28.57, -80.64] },
         { name: "Baikonur Cosmodrome", coords: [45.96, 63.30] },
@@ -114,17 +136,17 @@
                 if (satrec) {
                     const marker = L.marker([0, 0], { icon: satIcon, zIndexOffset: 1000 })
                         .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label', offset: [10, 0] })
+                        .bindPopup("A calcular...", { minWidth: 160 })
                         .addTo(map);
 
-                    // AS 4 CAMADAS DO RASTO NEON (Finas e em degradê)
                     const layers = [
-                        L.polyline([], { color: '#ff8c00', weight: 3.5, opacity: 0.15, className: 'neon-meteor' }).addTo(map), // Aura exterior
-                        L.polyline([], { color: '#ffb86c', weight: 2.0, opacity: 0.35, className: 'neon-meteor' }).addTo(map), // Brilho médio
-                        L.polyline([], { color: '#ffb86c', weight: 1.0, opacity: 0.60, className: 'neon-meteor' }).addTo(map), // Linha de cor
-                        L.polyline([], { color: '#ffffff', weight: 0.5, opacity: 0.85, className: 'neon-meteor' }).addTo(map)  // Núcleo agulha
+                        L.polyline([], { color: '#ff8c00', weight: 3.5, opacity: 0.15, className: 'neon-meteor' }).addTo(map),
+                        L.polyline([], { color: '#ffb86c', weight: 2.0, opacity: 0.35, className: 'neon-meteor' }).addTo(map),
+                        L.polyline([], { color: '#ffb86c', weight: 1.0, opacity: 0.60, className: 'neon-meteor' }).addTo(map),
+                        L.polyline([], { color: '#ffffff', weight: 0.5, opacity: 0.85, className: 'neon-meteor' }).addTo(map)
                     ];
 
-                    satellites.push({ satrec, marker, layers });
+                    satellites.push({ satrec, marker, layers, name });
                 }
             }
             updatePositions();
@@ -140,9 +162,26 @@
                 const posGd = satellite.eciToGeodetic(posVel.position, gmst);
                 const lat = satellite.degreesLat(posGd.latitude);
                 const lng = satellite.degreesLong(posGd.longitude);
+                const alt = posGd.height;
+
+                const vel = Math.sqrt(Math.pow(posVel.velocity.x, 2) + Math.pow(posVel.velocity.y, 2) + Math.pow(posVel.velocity.z, 2));
+
                 sat.marker.setLatLng([lat, lng]);
 
-                // Rasto meteoro ultra-curto (0.7 minutos)
+                // Atualização do Popup em Tempo Real
+                if (sat.marker.getPopup() && sat.marker.isPopupOpen()) {
+                    sat.marker.setPopupContent(`
+                        <span class="popup-title">${sat.name}</span>
+                        <div class="popup-data">
+                            <b>ALT:</b> ${alt.toFixed(2)} km<br>
+                            <b>VEL:</b> ${vel.toFixed(2)} km/s<br>
+                            <b>LAT:</b> ${lat.toFixed(4)}<br>
+                            <b>LNG:</b> ${lng.toFixed(4)}
+                        </div>
+                    `);
+                }
+
+                // Rasto Neon Afilado
                 let coords = [];
                 for (let j = 0; j <= 0.7; j += 0.1) {
                     const pTime = new Date(now.getTime() - (j * 60000));
@@ -154,12 +193,11 @@
                     }
                 }
 
-                // Evita linhas cruzadas no fim do mapa e aplica as camadas afiladas
                 if (coords.length > 1 && Math.abs(coords[0][1] - coords[coords.length-1][1]) < 180) {
-                    sat.layers[0].setLatLngs(coords);              // Camada 1: Rasto todo
-                    sat.layers[1].setLatLngs(coords.slice(0, 5));  // Camada 2: Encurta
-                    sat.layers[2].setLatLngs(coords.slice(0, 3));  // Camada 3: Mais curta
-                    sat.layers[3].setLatLngs(coords.slice(0, 2));  // Camada 4: Apenas a ponta
+                    sat.layers[0].setLatLngs(coords);
+                    sat.layers[1].setLatLngs(coords.slice(0, 5));
+                    sat.layers[2].setLatLngs(coords.slice(0, 3));
+                    sat.layers[3].setLatLngs(coords.slice(0, 2));
                 } else {
                     sat.layers.forEach(l => l.setLatLngs([]));
                 }
