@@ -41,8 +41,13 @@
     <select id="group-select" onchange="loadData(this.value)">
         <optgroup label="SNC STRATEGIC">
             <option value="PT">Portugal Strategic Assets</option>
+            <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle">Space Stations</option>
+            <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=tle">Amateur Radio</option>
             <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle">Weather (Meteorology)</option>
-            <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=gnss&FORMAT=tle">GPS / GNSS (Global Nav)</option>
+            <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle">GPS</option>
+            <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=gnss&FORMAT=tle">GNSS (Global Nav)</option>
+            <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=galileo&FORMAT=tle">Galileo</option>
+            <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=beidou&FORMAT=tle">Beidou</option>
             <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=science&FORMAT=tle">Scientific Missions</option>
         </optgroup>
         <optgroup label="PRIVATE CONSTELLATIONS">
@@ -87,19 +92,29 @@
 
     const groundStations = [
         { n: "OEIRAS SENSOR SITE", c: [38.6944381, -9.3089739], type: "local", spec: "Command Center" },
-        // DEEP SPACE NETWORKS (DSN / ESTRACK)
-        { n: "Madrid DSN (NASA)", c: [40.43, -4.24], type: "dsn", spec: "Deep Space Tracking" },
-        { n: "Goldstone DSN (NASA)", c: [35.42, -116.89], type: "dsn", spec: "Deep Space Tracking" },
-        { n: "Canberra DSN (NASA)", c: [-35.40, 148.98], type: "dsn", spec: "Deep Space Tracking" },
-        { n: "Santa Maria (ESTRACK)", c: [36.99, -25.13], type: "dsn", spec: "ESA Ground Link" },
-        { n: "Malargüe (ESTRACK)", c: [-35.77, -69.39], type: "dsn", spec: "ESA Ground Link" },
-        { n: "New Norcia (ESTRACK)", c: [-31.04, 116.19], type: "dsn", spec: "ESA Ground Link" },
-        // SPACEPORTS
-        { n: "Baikonur", c: [45.96, 63.30], type: "gov", spec: "Roscosmos Hub" },
-        { n: "Kennedy KSC", c: [28.57, -80.64], type: "gov", spec: "NASA Primary" },
-        { n: "Jiuquan", c: [40.96, 100.29], type: "gov", spec: "CNSA Hub" },
-        { n: "Starbase", c: [25.99, -97.15], type: "pvt", spec: "SpaceX Starship" },
-        { n: "Kourou", c: [5.23, -52.76], type: "gov", spec: "ESA Hub" }
+        { n: "ESTRACK Santa Maria", c: [36.99, -25.13], type: "dsn", spec: "15m Dish" },
+        { n: "ESTRACK Kiruna", c: [67.85, 20.96], type: "dsn", spec: "Dual 15m/13m" },
+        { n: "ESTRACK Kourou", c: [5.20, -52.80], type: "dsn", spec: "15m Dish" },
+        { n: "ESTRACK Malargüe", c: [-35.77, -69.39], type: "dsn", spec: "35m DSA-3" },
+        { n: "ESTRACK New Norcia", c: [-31.04, 116.19], type: "dsn", spec: "35m DSA-1" },
+        { n: "ESTRACK Cebreros", c: [40.45, -4.36], type: "dsn", spec: "35m DSA-2" },
+        { n: "ESTRACK Redu", c: [50.00, 5.14], type: "dsn", spec: "Multi-Dish" },
+        { n: "DSN Goldstone", c: [35.42, -116.89], type: "dsn", spec: "70m Dish" },
+        { n: "DSN Madrid", c: [40.43, -4.24], type: "dsn", spec: "70m Dish" },
+        { n: "DSN Canberra", c: [-35.40, 148.98], type: "dsn", spec: "70m Dish" },
+        { n: "Kennedy Space Center", c: [28.57, -80.64], type: "base", spec: "LC-39A/B" },
+        { n: "Vandenberg SFB", c: [34.74, -120.57], type: "base", spec: "Polar Site" },
+        { n: "SpaceX Starbase", c: [25.99, -97.15], type: "base", spec: "Orbital Pad" },
+        { n: "Guiana Space Centre", c: [5.23, -52.76], type: "base", spec: "Ariane 6" },
+        { n: "Baikonur Cosmodrome", c: [45.96, 63.30], type: "base", spec: "Soyuz/Proton" },
+        { n: "Plesetsk Cosmodrome", c: [62.92, 40.57], type: "base", spec: "Military Pad" },
+        { n: "Vostochny Cosmodrome", c: [51.88, 128.33], type: "base", spec: "New Site" },
+        { n: "Jiuquan Spaceport", c: [40.96, 100.29], type: "base", spec: "Gobi Desert" },
+        { n: "Wenchang SC", c: [19.61, 110.95], type: "base", spec: "Coastal Site" },
+        { n: "Satish Dhawan SC", c: [13.71, 80.23], type: "base", spec: "ISRO Site" },
+        { n: "Tanegashima SC", c: [30.37, 130.95], type: "base", spec: "JAXA Pad" },
+        { n: "Rocket Lab LC-1", c: [-39.26, 177.86], type: "base", spec: "Private Site" },
+        { n: "Alcântara Space Center", c: [-2.34, -44.40], type: "base", spec: "Equatorial" }
     ];
 
     groundStations.forEach(s => {
