@@ -215,8 +215,27 @@
         if (pv.position && pv.velocity) {
             const gd = satellite.eciToGeodetic(pv.position, gmst);
             
-            // CÁLCULO DA VELOCIDADE
-            // A velocidade vem em km/s nos vetores x, y, z. Usamos Pitágoras 3D:
+            // 1. EXTRAÇÃO DO NORAD ID E ANO DE LANÇAMENTO
+            const noradId = sat.satrec.satnum;
+            const line1 = sat.satrec.line1; 
+            const launchYearShort = parseInt(line1.substring(9, 11));
+            const fullYear = launchYearShort > 50 ? 1900 + launchYearShort : 2000 + launchYearShort;
+            const age = new Date().getFullYear() - fullYear;
+
+            // 2. LÓGICA DE SAÚDE ESTIMADA
+            let health, healthColor;
+            if (age > 25) {
+                health = "SPACE DEBRIS / INACTIVE";
+                healthColor = "#ff4e00"; 
+            } else if (age > 15) {
+                health = "EXTENDED MISSION";
+                healthColor = "#ffea00"; 
+            } else {
+                health = "OPERATIONAL / NOMINAL";
+                healthColor = "#39ff14"; 
+            }
+
+            // 3. CÁLCULO DA VELOCIDADE
             const speedKms = Math.sqrt(
                 Math.pow(pv.velocity.x, 2) + 
                 Math.pow(pv.velocity.y, 2) + 
@@ -226,10 +245,14 @@
 
             sat.marker.setPopupContent(`
                 <span class="pop-title">${sat.name}</span>
+                NORAD ID: <span class="pop-val">${noradId}</span><br>
+                STATUS: <span style="color:${healthColor}; font-weight:bold;">${health}</span><br>
+                LANÇAMENTO: <span class="pop-val">${fullYear}</span> (${age}a em órbita)<br>
+                <hr style="border:0; border-top:1px solid rgba(0,242,255,0.2); margin:5px 0;">
                 ALTITUDE: <span class="pop-val">${gd.height.toFixed(1)} KM</span><br>
                 VELOCIDADE: <span class="pop-val">${speedKms.toFixed(2)} KM/S</span><br>
                 <span style="font-size:9px; color:#890;">(${speedKmh.toLocaleString('pt-PT', {maximumFractionDigits:0})} KM/H)</span><br>
-                <hr style="border:0; border-top:1px solid rgba(0,242,255,0.2); margin:5px 0;">
+                <hr style="border:0; border-top:1px solid rgba(0,242,255,0.1); margin:5px 0;">
                 LAT: ${satellite.degreesLat(gd.latitude).toFixed(3)}°<br>
                 LNG: ${satellite.degreesLong(gd.longitude).toFixed(3)}°
             `);
