@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNC - Global Mission Control v8.2</title>
+    <title>SNC - Global Mission Control v8.3</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #020408; font-family: 'Courier New', monospace; overflow: hidden; color: #00f2ff; }
@@ -18,10 +18,7 @@
         #sat-list { max-height: 250px; overflow-y: auto; margin-top: 10px; border-top: 1px solid rgba(0, 242, 255, 0.2); scrollbar-width: thin; scrollbar-color: #00f2ff #000; }
         .sat-item { display: grid; grid-template-columns: 30px 1fr; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(0, 242, 255, 0.1); cursor: pointer; font-size: 11px; }
         .sat-ring { width: 10px; height: 10px; border: 2px solid #00f2ff; border-radius: 50%; box-shadow: 0 0 8px #00f2ff; }
-        
-        /* BLOQUEIO TOTAL DE SETAS */
-        .leaflet-tooltip-right:before, .leaflet-tooltip-left:before, .leaflet-popup-tip-container { display: none !important; }
-        
+        .leaflet-tooltip-right:before, .leaflet-popup-tip-container { display: none !important; }
         .sat-label { color: #00f2ff !important; font-size: 10px !important; background: none !important; border: none !important; box-shadow: none !important; text-shadow: 1px 1px 2px #000; margin-left: 8px; padding: 0 !important; font-weight: bold; }
         .icon-base { border: 1px solid #ff4e00; background: rgba(255, 78, 0, 0.3); box-shadow: 0 0 5px #ff4e00; }
         .icon-dsn { border: 1px solid #39ff14; background: rgba(57, 255, 20, 0.3); transform: rotate(45deg); box-shadow: 0 0 5px #39ff14; }
@@ -42,7 +39,7 @@
         <div class="clock-row"><span>LOCAL:</span> <span id="local-clock">00:00:00</span></div>
     </div>
     <select id="group-select" onchange="loadData(this.value)">
-        <option value="PT">FILTRO: Portugal Constellation</option>
+        <option value="PT">FILTRO: Portugal (Direct Link)</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle">SRC: All Active</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle">SRC: Stations</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle">SRC: Weather</option>
@@ -52,7 +49,7 @@
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle">SRC: GPS</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle">SRC: Starlink</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=military&FORMAT=tle">SRC: Military</option>
-        <option value="LOCAL_ACTIVE">LOCAL: data.tle (Active Sync)</option>
+        <option value="LOCAL_ACTIVE">LOCAL: data.tle (Sync Active)</option>
     </select>
     <div class="btn-group">
         <button onclick="checkAll(true)">SELECT ALL</button>
@@ -77,8 +74,12 @@
     const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: false }).setView([38, -9], 4);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    // Lista Mestre Portugal (PoSAT-2: 63488 adicionado)
-    const ptSatIds = ["63488", "63002", "60238", "22823", "59112", "57169", "37606", "39177"];
+    const ptLinks = [
+        "https://celestrak.org/NORAD/elements/gp.php?CATNR=63488&FORMAT=TLE",
+        "https://celestrak.org/NORAD/elements/gp.php?CATNR=63002&FORMAT=TLE",
+        "https://celestrak.org/NORAD/elements/gp.php?CATNR=60238&FORMAT=TLE",
+        "https://celestrak.org/NORAD/elements/gp.php?CATNR=22829&FORMAT=TLE"
+    ];
 
     const groundStations = [
         { n: "ESTRACK Santa Maria", c: [36.99, -25.13], type: "dsn", spec: "15m Dish" },
@@ -119,30 +120,31 @@
 
     async function loadData(url) {
         const listDiv = document.getElementById('sat-list');
-        listDiv.innerHTML = 'SYNCING SENSORS...';
+        listDiv.innerHTML = 'ESTABLISHING DIRECT LINKS...';
         clearSatellites();
         satellites = [];
 
-        let finalUrl = url;
-        if(url === "PT") {
-            finalUrl = `https://celestrak.org/NORAD/elements/gp.php?CATNR=${ptSatIds.join(',')}&FORMAT=tle`;
-        } else if(url === "LOCAL_ACTIVE") {
-            // Lógica data.tle: vai buscar os ativos e carrega como se fosse local
-            finalUrl = `https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle`;
-        }
-        
         try {
-            const resp = await fetch(finalUrl);
-            const data = await resp.text();
-            parseTLE(data);
-        } catch (e) { listDiv.innerHTML = "LINK ERROR: RETRY"; }
+            let combinedData = "";
+            if(url === "PT") {
+                const responses = await Promise.all(ptLinks.map(link => fetch(link).then(r => r.text())));
+                combinedData = responses.join("\n");
+            } else if(url === "LOCAL_ACTIVE") {
+                const resp = await fetch(`https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle`);
+                combinedData = await resp.text();
+            } else {
+                const resp = await fetch(url);
+                combinedData = await resp.text();
+            }
+            parseTLE(combinedData);
+        } catch (e) { listDiv.innerHTML = "CONNECTION ERROR"; }
     }
 
     function parseTLE(data) {
         const lines = data.split('\n');
         const listDiv = document.getElementById('sat-list');
         listDiv.innerHTML = '';
-        if(!data.trim() || data.includes("No GP data found")) { listDiv.innerHTML = 'NO TELEMETRY'; return; }
+        if(!data.trim() || data.includes("No GP data found")) { listDiv.innerHTML = 'NO TELEMETRY FOUND'; return; }
 
         for (let i = 0; i < lines.length - 2; i += 3) {
             const name = lines[i].trim();
@@ -158,8 +160,8 @@
             };
             
             obj.marker.on('click', () => updatePopup(obj));
-
             satellites.push(obj);
+
             const d = document.createElement('div');
             d.className = 'sat-item'; d.innerHTML = `<input type="checkbox"> <span>${name}</span>`;
             d.onclick = (e) => { 
@@ -183,7 +185,6 @@
 
     function updatePopup(sat) {
         const s = getSatState(sat);
-        const statusText = s ? '<span style="color:#39ff14;">TRACKING</span>' : '<span style="color:#ff4e00;">OFFLINE</span>';
         if(s) {
             sat.marker.bindPopup(`
                 <span class="pop-title">${sat.name}</span>
@@ -191,7 +192,7 @@
                 ALT: <span class="pop-val">${s.alt.toFixed(1)} KM</span><br>
                 VEL: <span class="pop-val">${s.vel.toFixed(2)} KM/S</span><br>
                 POS: ${s.lat.toFixed(3)}, ${s.lng.toFixed(3)}<br>
-                STAT: ${statusText}
+                STAT: <span style="color:#39ff14;">TRACKING</span>
             `).openPopup();
         }
     }
@@ -212,11 +213,7 @@
             if (s) {
                 sat.marker.setLatLng([s.lat, s.lng]);
                 sat.circle.setLatLng([s.lat, s.lng]).setRadius(s.rad);
-                
-                // Atualização em tempo real do Popup se aberto
-                if(sat.marker.getPopup() && sat.marker.getPopup().isOpen()) {
-                    updatePopup(sat);
-                }
+                if(sat.marker.getPopup() && sat.marker.getPopup().isOpen()) updatePopup(sat);
 
                 let pts = [];
                 for(let j=0; j<10; j++){
