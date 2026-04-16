@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNC - Global Mission Control v6.5</title>
+    <title>SNC - Global Mission Control v6.6</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #020408; font-family: 'Courier New', monospace; overflow: hidden; color: #00f2ff; }
@@ -37,7 +37,11 @@
         .sat-icon-minimal { display: flex; align-items: center; justify-content: center; }
         .sat-ring { width: 10px; height: 10px; border: 2px solid #00f2ff; border-radius: 50%; box-shadow: 0 0 8px #00f2ff; }
         
-        /* Tooltip limpo sem setas ou prefixos */
+        /* REMOÇÃO DA SETA: CSS agressivo para esconder a ponta do tooltip e popup */
+        .leaflet-tooltip-right:before, .leaflet-tooltip-left:before, .leaflet-popup-tip-container {
+            display: none !important;
+        }
+        
         .sat-label { 
             color: #00f2ff !important; font-size: 10px !important; background: none !important; 
             border: none !important; box-shadow: none !important; text-shadow: 1px 1px 2px #000; 
@@ -140,8 +144,7 @@
 
     async function loadData(url) {
         satellites.forEach(s => { 
-            map.removeLayer(s.marker); 
-            map.removeLayer(s.trail);
+            map.removeLayer(s.marker); map.removeLayer(s.trail);
             if(s.circle) map.removeLayer(s.circle);
         });
         satellites = [];
@@ -149,7 +152,7 @@
             const resp = await fetch(url);
             const data = await resp.text();
             parseTLE(data);
-        } catch (e) { document.getElementById('sat-list').innerText = "STREAM_ERROR"; }
+        } catch (e) { document.getElementById('sat-list').innerText = "STREAM_ERR"; }
     }
 
     function getSatState(sat) {
@@ -180,19 +183,22 @@
             const satrec = satellite.twoline2satrec(lines[i+1], lines[i+2]);
             if (!satrec) continue;
 
+            const noradId = lines[i+1].substring(2, 7).trim();
+
             const marker = L.marker([0, 0], { icon: satIcon })
-                .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label' });
+                .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label', offset: [5, 0] });
 
             const trail = L.polyline([], { color: '#00f2ff', weight: 1, opacity: 0.3 });
-            const circle = L.circle([0, 0], { radius: 0, color: '#00f2ff', weight: 1, fillOpacity: 0.1, interactive: false });
+            const circle = L.circle([0, 0], { radius: 0, color: '#00f2ff', weight: 1, fillOpacity: 0.05, interactive: false });
 
-            const satObj = { name, satrec, marker, trail, circle, active: false };
+            const satObj = { name, noradId, satrec, marker, trail, circle, active: false };
 
             marker.on('click', () => {
                 const s = getSatState(satObj);
                 if(s) {
                     marker.bindPopup(`
                         <span class="pop-title">${satObj.name}</span>
+                        NORAD ID: <span class="pop-val">${satObj.noradId}</span><br>
                         STATUS: <span class="pop-val">OPERATIONAL</span><br>
                         ALTITUDE: <span class="pop-val">${s.alt.toFixed(1)} KM</span><br>
                         VELOCIDADE: <span class="pop-val">${s.vel.toFixed(2)} KM/S</span><br>
@@ -234,6 +240,7 @@
                 if (sat.marker.isPopupOpen()) {
                     sat.marker.setPopupContent(`
                         <span class="pop-title">${sat.name}</span>
+                        NORAD ID: <span class="pop-val">${sat.noradId}</span><br>
                         STATUS: <span class="pop-val">OPERATIONAL</span><br>
                         ALTITUDE: <span class="pop-val">${s.alt.toFixed(1)} KM</span><br>
                         VELOCIDADE: <span class="pop-val">${s.vel.toFixed(2)} KM/S</span><br>
