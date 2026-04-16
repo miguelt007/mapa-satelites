@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNC - Global Mission Control v7.0</title>
+    <title>SNC - Global Mission Control v7.1</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #020408; font-family: 'Courier New', monospace; overflow: hidden; color: #00f2ff; }
@@ -19,7 +19,10 @@
         .sat-item { display: grid; grid-template-columns: 30px 1fr; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(0, 242, 255, 0.1); cursor: pointer; }
         .sat-icon-minimal { display: flex; align-items: center; justify-content: center; }
         .sat-ring { width: 10px; height: 10px; border: 2px solid #00f2ff; border-radius: 50%; box-shadow: 0 0 8px #00f2ff; }
-        .leaflet-tooltip-right:before, .leaflet-tooltip-left:before, .leaflet-popup-tip-container { display: none !important; }
+        
+        /* BLOQUEIO TOTAL DE SETAS */
+        .leaflet-tooltip-right:before, .leaflet-tooltip-left:before, .leaflet-tooltip-top:before, .leaflet-tooltip-bottom:before, .leaflet-popup-tip-container { display: none !important; }
+        
         .sat-label { color: #00f2ff !important; font-size: 10px !important; background: none !important; border: none !important; box-shadow: none !important; text-shadow: 1px 1px 2px #000; margin-left: 8px; padding: 0 !important; font-weight: bold; }
         .icon-base { border: 1px solid #ff4e00; background: rgba(255, 78, 0, 0.3); box-shadow: 0 0 5px #ff4e00; }
         .icon-dsn { border: 1px solid #39ff14; background: rgba(57, 255, 20, 0.3); transform: rotate(45deg); box-shadow: 0 0 5px #39ff14; }
@@ -42,13 +45,17 @@
     <select id="group-select" onchange="loadData(this.value)">
         <option value="PT_ONLY">FILTRO: Portugal (Custom)</option>
         <option value="data.tle">LOCAL: data.tle</option>
-        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle">SRC: All Active</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle">SRC: Stations</option>
+        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle">SRC: Weather</option>
+        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=resource&FORMAT=tle">SRC: Earth Resources</option>
+        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=sarsat&FORMAT=tle">SRC: Search & Rescue</option>
+        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=galileo&FORMAT=tle">SRC: Galileo</option>
+        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle">SRC: GPS</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle">SRC: Starlink</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=military&FORMAT=tle">SRC: Military</option>
-        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=galileo&FORMAT=tle">SRC: Galileo</option>
+        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle">SRC: All Active</option>
     </select>
-    <input type="text" id="search-bar" placeholder="FILTER BY NAME..." onkeyup="filterList()">
+    <input type="text" id="search-bar" placeholder="FILTER SENSORS..." onkeyup="filterList()">
     <div class="btn-group">
         <button onclick="checkAll(true)">SELECT ALL</button>
         <button onclick="checkAll(false)">CLEAR</button>
@@ -71,7 +78,7 @@
     const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: false }).setView([38, -9], 4);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    // --- LISTA DE IDS PORTUGUESES (EDITÁVEL) ---
+    // IDs Portugueses para o filtro customizado
     const ptSatIds = ["59112", "57169", "37606", "39177", "22823"];
 
     const groundStations = [
@@ -115,7 +122,8 @@
         satellites.forEach(s => { map.removeLayer(s.marker); map.removeLayer(s.trail); if(s.circle) map.removeLayer(s.circle); });
         satellites = [];
         try {
-            let resp = await fetch(url === "PT_ONLY" ? 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle' : url);
+            let fetchUrl = (url === "PT_ONLY") ? 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle' : url;
+            let resp = await fetch(fetchUrl);
             let data = await resp.text();
             if(url === "PT_ONLY") data = filterPt(data);
             parseTLE(data);
@@ -151,10 +159,12 @@
             const trail = L.polyline([], { color: '#00f2ff', weight: 1, opacity: 0.3 });
             const circle = L.circle([0, 0], { radius: 0, color: '#00f2ff', weight: 1, fillOpacity: 0.05, interactive: false });
             const obj = { name, id, satrec, marker, trail, circle, active: false };
+            
             marker.on('click', () => {
                 const s = getSatState(obj);
                 if(s) marker.bindPopup(`<span class="pop-title">${obj.name}</span>NORAD ID: <span class="pop-val">${obj.id}</span><br>STATUS: <span class="pop-val">OPERATIONAL</span><br>ALTITUDE: <span class="pop-val">${s.alt.toFixed(1)} KM</span><br>VELOCIDADE: <span class="pop-val">${s.vel.toFixed(2)} KM/S</span><br>COORD: ${s.lat.toFixed(3)}, ${s.lng.toFixed(3)}`).openPopup();
             });
+
             satellites.push(obj);
             const d = document.createElement('div');
             d.className = 'sat-item'; d.innerHTML = `<input type="checkbox"> <span>${name}</span>`;
