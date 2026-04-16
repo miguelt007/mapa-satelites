@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNC - Global Mission Control v6.1</title>
+    <title>SNC - Global Mission Control v6.3</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #020408; font-family: 'Courier New', monospace; overflow: hidden; color: #00f2ff; }
@@ -64,18 +64,14 @@
         <div class="clock-row"><span>LOCAL_T:</span> <span id="local-clock">00:00:00</span></div>
     </div>
     <select id="group-select" onchange="loadData(this.value)">
+        <option value="data.tle">LOCAL: data.tle</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle">SRC: Stations</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle">SRC: Weather Stations</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=resource&FORMAT=tle">SRC: Earth Resources</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=sarsat&FORMAT=tle">SRC: Search & Rescue (SARSAT)</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=galileo&FORMAT=tle">SRC: Galileo</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle">SRC: GPS</option>
-        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=beidou&FORMAT=tle">SRC: GPS Beidou</option>
-        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=glo-ops&FORMAT=tle">SRC: GPS Glonass</option>
-        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=satnogs&FORMAT=tle">SRC: SatNOGS</option>
-        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=amateur&FORMAT=tle">SRC: Amateur Radio</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle">SRC: Starlink</option>
-        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=oneweb&FORMAT=tle">SRC: OneWeb</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=military&FORMAT=tle">SRC: Military</option>
     </select>
     <input type="text" id="search-bar" placeholder="FILTER SENSORS..." onkeyup="filterList()">
@@ -102,29 +98,29 @@
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
     const groundStations = [
-        { n: "ESTRACK Santa Maria", c: [36.99, -25.13], t: "Portugal", type: "dsn", spec: "15m Dish" },
-        { n: "ESTRACK Kiruna", c: [67.85, 20.96], t: "Sweden", type: "dsn", spec: "Dual 15m/13m" },
-        { n: "ESTRACK Kourou", c: [5.20, -52.80], t: "GF", type: "dsn", spec: "15m Dish" },
-        { n: "ESTRACK Malargüe", c: [-35.77, -69.39], t: "Argentina", type: "dsn", spec: "35m DSA-3" },
-        { n: "ESTRACK New Norcia", c: [-31.04, 116.19], t: "Australia", type: "dsn", spec: "35m DSA-1" },
-        { n: "ESTRACK Cebreros", c: [40.45, -4.36], t: "Spain", type: "dsn", spec: "35m DSA-2" },
-        { n: "ESTRACK Redu", c: [50.00, 5.14], t: "Belgium", type: "dsn", spec: "Multi-Dish" },
-        { n: "DSN Goldstone", c: [35.42, -116.89], t: "USA", type: "dsn", spec: "70m Dish" },
-        { n: "DSN Madrid", c: [40.43, -4.24], t: "Spain", type: "dsn", spec: "70m Dish" },
-        { n: "DSN Canberra", c: [-35.40, 148.98], t: "Australia", type: "dsn", spec: "70m Dish" },
-        { n: "Kennedy Space Center", c: [28.57, -80.64], t: "USA", type: "base", spec: "LC-39A/B" },
-        { n: "Vandenberg SFB", c: [34.74, -120.57], t: "USA", type: "base", spec: "Polar Site" },
-        { n: "SpaceX Starbase", c: [25.99, -97.15], t: "USA", type: "base", spec: "Orbital Pad" },
-        { n: "Guiana Space Centre", c: [5.23, -52.76], t: "GF", type: "base", spec: "Ariane 6" },
-        { n: "Baikonur Cosmodrome", c: [45.96, 63.30], t: "KAZ", type: "base", spec: "Soyuz/Proton" },
-        { n: "Plesetsk Cosmodrome", c: [62.92, 40.57], t: "RUS", type: "base", spec: "Military Pad" },
-        { n: "Vostochny Cosmodrome", c: [51.88, 128.33], t: "RUS", type: "base", spec: "New Site" },
-        { n: "Jiuquan Spaceport", c: [40.96, 100.29], t: "CHN", type: "base", spec: "Gobi Desert" },
-        { n: "Wenchang SC", c: [19.61, 110.95], t: "CHN", type: "base", spec: "Coastal Site" },
-        { n: "Satish Dhawan SC", c: [13.71, 80.23], t: "India", type: "base", spec: "ISRO Site" },
-        { n: "Tanegashima SC", c: [30.37, 130.95], t: "Japan", type: "base", spec: "JAXA Pad" },
-        { n: "Rocket Lab LC-1", c: [-39.26, 177.86], t: "NZ", type: "base", spec: "Private Site" },
-        { n: "Alcântara Space Center", c: [-2.34, -44.40], t: "Brazil", type: "base", spec: "Equatorial" }
+        { n: "ESTRACK Santa Maria", c: [36.99, -25.13], type: "dsn", spec: "15m Dish" },
+        { n: "ESTRACK Kiruna", c: [67.85, 20.96], type: "dsn", spec: "Dual 15m/13m" },
+        { n: "ESTRACK Kourou", c: [5.20, -52.80], type: "dsn", spec: "15m Dish" },
+        { n: "ESTRACK Malargüe", c: [-35.77, -69.39], type: "dsn", spec: "35m DSA-3" },
+        { n: "ESTRACK New Norcia", c: [-31.04, 116.19], type: "dsn", spec: "35m DSA-1" },
+        { n: "ESTRACK Cebreros", c: [40.45, -4.36], type: "dsn", spec: "35m DSA-2" },
+        { n: "ESTRACK Redu", c: [50.00, 5.14], type: "dsn", spec: "Multi-Dish" },
+        { n: "DSN Goldstone", c: [35.42, -116.89], type: "dsn", spec: "70m Dish" },
+        { n: "DSN Madrid", c: [40.43, -4.24], type: "dsn", spec: "70m Dish" },
+        { n: "DSN Canberra", c: [-35.40, 148.98], type: "dsn", spec: "70m Dish" },
+        { n: "Kennedy Space Center", c: [28.57, -80.64], type: "base", spec: "LC-39A/B" },
+        { n: "Vandenberg SFB", c: [34.74, -120.57], type: "base", spec: "Polar Site" },
+        { n: "SpaceX Starbase", c: [25.99, -97.15], type: "base", spec: "Orbital Pad" },
+        { n: "Guiana Space Centre", c: [5.23, -52.76], type: "base", spec: "Ariane 6" },
+        { n: "Baikonur Cosmodrome", c: [45.96, 63.30], type: "base", spec: "Soyuz/Proton" },
+        { n: "Plesetsk Cosmodrome", c: [62.92, 40.57], type: "base", spec: "Military Pad" },
+        { n: "Vostochny Cosmodrome", c: [51.88, 128.33], type: "base", spec: "New Site" },
+        { n: "Jiuquan Spaceport", c: [40.96, 100.29], type: "base", spec: "Gobi Desert" },
+        { n: "Wenchang SC", c: [19.61, 110.95], type: "base", spec: "Coastal Site" },
+        { n: "Satish Dhawan SC", c: [13.71, 80.23], type: "base", spec: "ISRO Site" },
+        { n: "Tanegashima SC", c: [30.37, 130.95], type: "base", spec: "JAXA Pad" },
+        { n: "Rocket Lab LC-1", c: [-39.26, 177.86], type: "base", spec: "Private Site" },
+        { n: "Alcântara Space Center", c: [-2.34, -44.40], type: "base", spec: "Equatorial" }
     ];
 
     groundStations.forEach(s => {
@@ -135,7 +131,7 @@
     });
 
     L.marker([38.6944381, -9.3089739], { icon: L.divIcon({ className: 'icon-special-sq', iconSize: [7, 7] }) })
-     .bindPopup(`<span class="pop-title">Sensor Site</span>Local: Oeiras, Portugal<br>Status: <span style="color:#00ff00;">OPERATIONAL</span>`)
+     .bindPopup(`<span class="pop-title">Sensor Site</span>Local: Oeiras, PT<br>Status: <span style="color:#00ff00;">OPERATIONAL</span>`)
      .addTo(map);
 
     let satellites = [];
@@ -148,7 +144,7 @@
             const resp = await fetch(url);
             const data = await resp.text();
             parseTLE(data);
-        } catch (e) { document.getElementById('sat-list').innerText = "STREAM_ERR"; }
+        } catch (e) { document.getElementById('sat-list').innerText = "LOAD_ERR: " + url; }
     }
 
     function getSatHTML(sat) {
@@ -158,12 +154,15 @@
         if (pv.position && pv.velocity) {
             const gd = satellite.eciToGeodetic(pv.position, gmst);
             const speed = Math.sqrt(Math.pow(pv.velocity.x,2)+Math.pow(pv.velocity.y,2)+Math.pow(pv.velocity.z,2));
+            const status = gd.height > 100 ? "OPERATIONAL" : "DECAY_WARNING";
+
             return `<span class="pop-title">${sat.name}</span>
+                    STATUS: <span class="pop-val">${status}</span><br>
                     ALTITUDE: <span class="pop-val">${gd.height.toFixed(1)} KM</span><br>
                     VELOCIDADE: <span class="pop-val">${speed.toFixed(2)} KM/S</span><br>
-                    COORDENADAS: ${satellite.degreesLat(gd.latitude).toFixed(3)}°, ${satellite.degreesLong(gd.longitude).toFixed(3)}°`;
+                    COORD: ${satellite.degreesLat(gd.latitude).toFixed(3)}°, ${satellite.degreesLong(gd.longitude).toFixed(3)}°`;
         }
-        return "SYNC_LOST";
+        return "SIGNAL_LOST";
     }
 
     function parseTLE(data) {
@@ -177,7 +176,7 @@
 
             const marker = L.marker([0, 0], { icon: satIcon })
                 .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label' })
-                .bindPopup("FETCHING...");
+                .bindPopup("SYNCING...");
 
             const trail = L.polyline([], { color: '#00f2ff', weight: 1, opacity: 0.4 });
             const satObj = { name, satrec, marker, trails: [trail], active: false };
@@ -212,15 +211,12 @@
             const pv = satellite.propagate(sat.satrec, now);
             if (pv.position) {
                 const gd = satellite.eciToGeodetic(pv.position, gmst);
-                const lat = satellite.degreesLat(gd.latitude);
-                const lng = satellite.degreesLong(gd.longitude);
-                sat.marker.setLatLng([lat, lng]);
-
+                sat.marker.setLatLng([satellite.degreesLat(gd.latitude), satellite.degreesLong(gd.longitude)]);
                 if (sat.marker.isPopupOpen()) sat.marker.setPopupContent(getSatHTML(sat));
 
                 let pts = [];
-                for(let j=0; j<10; j++) {
-                    const oldT = new Date(now.getTime() - (j * 30000));
+                for(let j=0; j<12; j++) {
+                    const oldT = new Date(now.getTime() - (j * 40000));
                     const oldP = satellite.propagate(sat.satrec, oldT);
                     if(oldP.position) {
                         const og = satellite.eciToGeodetic(oldP.position, satellite.gstime(oldT));
@@ -244,7 +240,7 @@
         document.querySelectorAll('.sat-item input').forEach((cb, i) => { cb.checked = val; toggleSat(satellites[i], val); });
     }
 
-    loadData('https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle');
+    loadData('data.tle'); // Inicia com o local por defeito
     update();
 </script>
 </body>
