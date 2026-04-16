@@ -50,8 +50,10 @@
             border: none !important; box-shadow: none !important; text-shadow: 1px 1px 2px #000; 
             margin-left: 10px; padding: 0 !important;
         }
+        .leaflet-tooltip-right:before, .leaflet-tooltip-left:before, 
+        .leaflet-tooltip-top:before, .leaflet-tooltip-bottom:before { display: none !important; }
 
-        /* INFRAESTRUTURA ORIGINAL */
+        /* INFRAESTRUTURA */
         .icon-base { border: 1px solid #ff4e00; background: rgba(255, 78, 0, 0.3); box-shadow: 0 0 5px #ff4e00; }
         .icon-dsn { border: 1px solid #39ff14; background: rgba(57, 255, 20, 0.3); transform: rotate(45deg); box-shadow: 0 0 5px #39ff14; }
         .icon-special-sq { border: 1px solid #ffea00; background: rgba(255, 234, 0, 0.3); box-shadow: 0 0 5px #ffea00; }
@@ -179,18 +181,15 @@
 
             const marker = L.marker([0, 0], { icon: satIcon })
                 .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label' })
-                .bindPopup(""); 
+                .bindPopup("FETCHING_DATA...");
 
             const trails = [L.polyline([], { color: '#00f2ff', weight: 1, opacity: 0.5, dashArray: '2, 5', interactive: false })];
             const footprint = L.circle([0, 0], { radius: 0, color: '#00f2ff', weight: 1, fillColor: '#00f2ff', fillOpacity: 0.05, interactive: false });
 
             const satObj = { name, satrec, marker, trails, footprint, active: false };
             
-            // CORREÇÃO: Atualiza os dados IMEDIATAMENTE no clique
-            marker.on('click', () => {
-                updateSatPopup(satObj);
-                marker.openPopup();
-            });
+            // Revertido para o teu evento original, apenas garantindo o preenchimento dos dados
+            marker.on('click', () => updateSatPopup(satObj));
 
             satellites.push(satObj);
 
@@ -211,8 +210,9 @@
         
         if (pv.position && pv.velocity) {
             const gd = satellite.eciToGeodetic(pv.position, gmst);
-            
             const noradId = sat.satrec.satnum;
+            
+            // Lógica de Saúde (Idade)
             const line1 = sat.satrec.line1; 
             const launchYearShort = parseInt(line1.substring(9, 11));
             const fullYear = launchYearShort > 50 ? 1900 + launchYearShort : 2000 + launchYearShort;
@@ -224,22 +224,17 @@
             else { health = "OPERATIONAL / NOMINAL"; healthColor = "#39ff14"; }
 
             const speedKms = Math.sqrt(Math.pow(pv.velocity.x, 2) + Math.pow(pv.velocity.y, 2) + Math.pow(pv.velocity.z, 2));
-            const speedKmh = speedKms * 3600;
 
             sat.marker.setPopupContent(`
                 <span class="pop-title">${sat.name}</span>
                 NORAD ID: <span class="pop-val">${noradId}</span><br>
                 STATUS: <span style="color:${healthColor}; font-weight:bold;">${health}</span><br>
-                LANÇAMENTO: <span class="pop-val">${fullYear}</span> (${age}a em órbita)<br>
+                LANÇAMENTO: <span class="pop-val">${fullYear}</span> (${age}a)<br>
                 <hr style="border:0; border-top:1px solid rgba(0,242,255,0.2); margin:5px 0;">
                 ALTITUDE: <span class="pop-val">${gd.height.toFixed(1)} KM</span><br>
                 VELOCIDADE: <span class="pop-val">${speedKms.toFixed(2)} KM/S</span><br>
-                <span style="font-size:9px; color:#890;">(${speedKmh.toLocaleString('pt-PT', {maximumFractionDigits:0})} KM/H)</span><br>
-                <hr style="border:0; border-top:1px solid rgba(0,242,255,0.1); margin:5px 0;">
                 LAT/LNG: ${satellite.degreesLat(gd.latitude).toFixed(3)}°, ${satellite.degreesLong(gd.longitude).toFixed(3)}°
             `);
-            
-            if (sat.marker.getPopup()) sat.marker.getPopup().update();
         }
     }
 
