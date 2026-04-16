@@ -168,7 +168,8 @@
         } catch (e) { document.getElementById('sat-list').innerHTML = "ERR: NO_TLE_STREAM"; }
     }
 
-    function calculatePopupHTML(sat) {
+    // Função para calcular o HTML do popup dinamicamente
+    function getPopupHTML(sat) {
         const now = new Date();
         const gmst = satellite.gstime(now);
         const pv = satellite.propagate(sat.satrec, now);
@@ -197,7 +198,7 @@
                     VELOCIDADE: <span class="pop-val">${speedKms.toFixed(2)} KM/S</span><br>
                     LAT/LNG: ${satellite.degreesLat(gd.latitude).toFixed(3)}°, ${satellite.degreesLong(gd.longitude).toFixed(3)}°`;
         }
-        return "ERROR_DATA";
+        return "SYNC_ERROR";
     }
 
     function parseTLE(data) {
@@ -210,17 +211,17 @@
             if (!satrec) continue;
 
             const marker = L.marker([0, 0], { icon: satIcon })
-                .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label' })
-                .bindPopup("INIT"); // Força a criação do popup
+                .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label' });
 
             const trails = [L.polyline([], { color: '#00f2ff', weight: 1, opacity: 0.5, dashArray: '2, 5', interactive: false })];
             const footprint = L.circle([0, 0], { radius: 0, color: '#00f2ff', weight: 1, fillColor: '#00f2ff', fillOpacity: 0.05, interactive: false });
 
             const satObj = { name, satrec, marker, trails, footprint, active: false };
             
-            // ATUALIZAÇÃO AO ABRIR: Injeta o HTML real no momento em que o popup abre
-            marker.on('popupopen', () => {
-                marker.setPopupContent(calculatePopupHTML(satObj));
+            // CORREÇÃO: Abre o popup já com o conteúdo calculado
+            marker.on('click', (e) => {
+                const html = getPopupHTML(satObj);
+                marker.bindPopup(html).openPopup();
             });
 
             satellites.push(satObj);
@@ -273,8 +274,9 @@
                 sat.footprint.setLatLng([lat, lng]);
                 sat.footprint.setRadius(R_EARTH * horizonAngle * 1000);
 
-                if (sat.marker.isPopupOpen()) {
-                    sat.marker.setPopupContent(calculatePopupHTML(sat));
+                // Se o popup estiver aberto, atualizamos o conteúdo em tempo real
+                if (sat.marker.getPopup() && sat.marker.isPopupOpen()) {
+                    sat.marker.setPopupContent(getPopupHTML(sat));
                 }
                 
                 let pts = [];
