@@ -3,12 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNC - Global Mission Control v16.0</title>
+    <title>SNC - Integrated Mission Control v18.0</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #020408; font-family: 'Courier New', monospace; overflow: hidden; color: #00f2ff; }
         #map { height: 100vh; width: 100%; background: #020408; }
-        #hud { position: absolute; top: 15px; left: 15px; z-index: 1000; background: rgba(2, 4, 8, 0.95); border: 1px solid #00f2ff; padding: 15px; width: 350px; border-radius: 2px; box-shadow: 0 0 15px rgba(0, 242, 255, 0.2); }
+        #hud { position: absolute; top: 15px; left: 15px; z-index: 1000; background: rgba(2, 4, 8, 0.95); border: 1px solid #00f2ff; padding: 15px; width: 350px; border-radius: 2px; }
         .status-bar { border-bottom: 1px solid rgba(0, 242, 255, 0.3); padding-bottom: 8px; margin-bottom: 10px; font-size: 11px; }
         .clock-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
         .btn-group { display: flex; gap: 5px; margin-top: 8px; }
@@ -19,13 +19,14 @@
         .sat-item { display: grid; grid-template-columns: 30px 1fr; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(0, 242, 255, 0.1); cursor: pointer; font-size: 11px; }
         .sat-ring { width: 10px; height: 10px; border: 2px solid #00f2ff; border-radius: 50%; box-shadow: 0 0 8px #00f2ff; }
         
-        /* Icons */
-        .icon-local { border: 2px solid #ffea00; background: rgba(255, 234, 0, 0.7); box-shadow: 0 0 15px #ffea00; border-radius: 50%; }
+        /* Groundstation Icons */
+        .icon-local { border: 2px solid #ffea00; background: rgba(255, 234, 0, 0.8); box-shadow: 0 0 15px #ffea00; border-radius: 50%; }
+        .icon-dsn { border: 1px solid #39ff14; background: rgba(57, 255, 20, 0.5); transform: rotate(45deg); }
         .icon-gov { border: 1px solid #00f2ff; background: rgba(0, 242, 255, 0.4); }
-        .icon-pvt { border: 1px solid #ff00ff; background: rgba(255, 0, 255, 0.4); box-shadow: 0 0 8px #ff00ff; }
+        .icon-pvt { border: 1px solid #ff00ff; background: rgba(255, 0, 255, 0.4); }
 
         .leaflet-popup-content-wrapper { background: #000 !important; border: 1px solid #00f2ff; border-radius: 0; color: #fff; font-size: 11px; }
-        .pop-title { color: #00f2ff; font-weight: bold; border-bottom: 1px solid #00f2ff; margin-bottom: 6px; display: block; text-transform: uppercase; }
+        .pop-title { color: #00f2ff; font-weight: bold; border-bottom: 1px solid #00f2ff; margin-bottom: 6px; display: block; }
         .pop-val { color: #39ff14; }
         #legend { position: absolute; bottom: 30px; left: 15px; z-index: 1000; background: rgba(2, 4, 8, 0.9); border: 1px solid rgba(0, 242, 255, 0.5); padding: 10px; font-size: 10px; line-height: 1.6; }
     </style>
@@ -38,17 +39,16 @@
         <div class="clock-row"><span>LOC:</span> <span id="local-clock">00:00:00</span></div>
     </div>
     <select id="group-select" onchange="loadData(this.value)">
-        <optgroup label="SNC / GOVERNMENT">
+        <optgroup label="SNC STRATEGIC">
             <option value="PT">Portugal Strategic Assets</option>
-            <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle">Weather & Meteo</option>
-            <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=gnss&FORMAT=tle">GPS / GNSS (Global)</option>
+            <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle">Weather (Meteorology)</option>
+            <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=gnss&FORMAT=tle">GPS / GNSS (Global Nav)</option>
             <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=science&FORMAT=tle">Scientific Missions</option>
         </optgroup>
         <optgroup label="PRIVATE CONSTELLATIONS">
             <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle">Starlink (SpaceX)</option>
             <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=oneweb&FORMAT=tle">OneWeb</option>
             <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=planet&FORMAT=tle">Planet (Earth Obs)</option>
-            <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=spire&FORMAT=tle">Spire (AIS/ADS-B)</option>
         </optgroup>
         <optgroup label="GLOBAL MONITOR">
             <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle">All Active Satellites</option>
@@ -58,14 +58,15 @@
         <button onclick="checkAll(true)">SELECT ALL</button>
         <button onclick="checkAll(false)">CLEAR ALL</button>
     </div>
-    <input type="text" id="search-bar" placeholder="FILTER SENSORS..." onkeyup="filterList()">
-    <div id="sat-list">INITIALIZING UPLINK...</div>
+    <input type="text" id="search-bar" placeholder="FILTER ORBITAL ASSETS..." onkeyup="filterList()">
+    <div id="sat-list">UPLINKING...</div>
 </div>
 
 <div id="legend">
-    <div style="display:flex; align-items:center; gap:8px;"><div style="width:10px; height:10px;" class="icon-local"></div> <span style="color:#ffea00; font-weight:bold;">OEIRAS SENSOR SITE</span></div>
-    <div style="display:flex; align-items:center; gap:8px;"><div style="width:8px; height:8px;" class="icon-gov"></div> <span>Gov Spaceports (NASA/RU/CN)</span></div>
-    <div style="display:flex; align-items:center; gap:8px;"><div style="width:8px; height:8px;" class="icon-pvt"></div> <span>Private Launch Sites (SpaceX/RL)</span></div>
+    <div style="display:flex; align-items:center; gap:8px;"><div style="width:10px; height:10px;" class="icon-local"></div> <span style="color:#ffea00;">OEIRAS SENSOR SITE</span></div>
+    <div style="display:flex; align-items:center; gap:8px;"><div style="width:8px; height:8px;" class="icon-dsn"></div> <span style="color:#39ff14;">DSN / ESTRACK NETWORK</span></div>
+    <div style="display:flex; align-items:center; gap:8px;"><div style="width:8px; height:8px;" class="icon-gov"></div> <span>Gov Spaceports</span></div>
+    <div style="display:flex; align-items:center; gap:8px;"><div style="width:8px; height:8px;" class="icon-pvt"></div> <span>Private Launch Sites</span></div>
 </div>
 
 <div id="map"></div>
@@ -86,24 +87,24 @@
 
     const groundStations = [
         { n: "OEIRAS SENSOR SITE", c: [38.6944381, -9.3089739], type: "local", spec: "Command Center" },
-        // GOV
+        // DEEP SPACE NETWORKS (DSN / ESTRACK)
+        { n: "Madrid DSN (NASA)", c: [40.43, -4.24], type: "dsn", spec: "Deep Space Tracking" },
+        { n: "Goldstone DSN (NASA)", c: [35.42, -116.89], type: "dsn", spec: "Deep Space Tracking" },
+        { n: "Canberra DSN (NASA)", c: [-35.40, 148.98], type: "dsn", spec: "Deep Space Tracking" },
+        { n: "Santa Maria (ESTRACK)", c: [36.99, -25.13], type: "dsn", spec: "ESA Ground Link" },
+        { n: "Malargüe (ESTRACK)", c: [-35.77, -69.39], type: "dsn", spec: "ESA Ground Link" },
+        { n: "New Norcia (ESTRACK)", c: [-31.04, 116.19], type: "dsn", spec: "ESA Ground Link" },
+        // SPACEPORTS
         { n: "Baikonur", c: [45.96, 63.30], type: "gov", spec: "Roscosmos Hub" },
         { n: "Kennedy KSC", c: [28.57, -80.64], type: "gov", spec: "NASA Primary" },
         { n: "Jiuquan", c: [40.96, 100.29], type: "gov", spec: "CNSA Hub" },
-        { n: "Kourou", c: [5.23, -52.76], type: "gov", spec: "ESA Hub" },
-        { n: "Vostochny", c: [51.88, 128.33], type: "gov", spec: "RU East" },
-        { n: "Tanegashima", c: [30.40, 130.97], type: "gov", spec: "JAXA Hub" },
-        { n: "Sriharikota", c: [13.71, 80.23], type: "gov", spec: "ISRO Hub" },
-        // PVT
-        { n: "Starbase (Boca Chica)", c: [25.99, -97.15], type: "pvt", spec: "SpaceX Starship" },
-        { n: "McGregor Test Site", c: [31.39, -97.46], type: "pvt", spec: "SpaceX Engine Test" },
-        { n: "Mahia Peninsula", c: [-39.26, 177.86], type: "pvt", spec: "Rocket Lab LC-1" },
-        { n: "Cornwall Spaceport", c: [50.44, -4.99], type: "pvt", spec: "UK Commercial" }
+        { n: "Starbase", c: [25.99, -97.15], type: "pvt", spec: "SpaceX Starship" },
+        { n: "Kourou", c: [5.23, -52.76], type: "gov", spec: "ESA Hub" }
     ];
 
     groundStations.forEach(s => {
         L.marker(s.c, { icon: L.divIcon({className: 'icon-' + s.type, iconSize:[8,8]}) })
-         .bindPopup(`<span class="pop-title">${s.n}</span>TYPE: ${s.spec}<br>STATUS: <span class="pop-val">ONLINE</span>`).addTo(map);
+         .bindPopup(`<span class="pop-title">${s.n}</span>TYPE: ${s.spec}<br>STATUS: <span class="pop-val">OPERATIONAL</span>`).addTo(map);
     });
 
     let satellites = [];
@@ -136,13 +137,12 @@
             if (l1.startsWith('1') && l2.startsWith('2')) {
                 const satrec = satellite.twoline2satrec(l1, l2);
                 const id = l1.substring(2, 7).trim();
-                
                 const yr = parseInt(l1.substring(18, 20));
                 const fullYr = (yr < 57) ? 2000 + yr : 1900 + yr;
                 const tDate = new Date(fullYr, 0);
                 tDate.setDate(tDate.getDate() + parseFloat(l1.substring(20, 32)) - 1);
                 const ageDays = (new Date() - tDate) / (1000 * 3600 * 24);
-                let realStatus = ageDays < 21 ? "ACTIVE" : "INACTIVE";
+                let realStatus = ageDays < 25 ? "ACTIVE" : "INACTIVE";
 
                 const obj = { 
                     name, id, satrec, realStatus,
