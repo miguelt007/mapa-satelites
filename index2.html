@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNC - Global Mission Control v6.6</title>
+    <title>SNC - Global Mission Control v6.8</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #020408; font-family: 'Courier New', monospace; overflow: hidden; color: #00f2ff; }
@@ -37,8 +37,8 @@
         .sat-icon-minimal { display: flex; align-items: center; justify-content: center; }
         .sat-ring { width: 10px; height: 10px; border: 2px solid #00f2ff; border-radius: 50%; box-shadow: 0 0 8px #00f2ff; }
         
-        /* REMOÇÃO DA SETA: CSS agressivo para esconder a ponta do tooltip e popup */
-        .leaflet-tooltip-right:before, .leaflet-tooltip-left:before, .leaflet-popup-tip-container {
+        /* BANIMENTO TOTAL DA SETA */
+        .leaflet-tooltip-right:before, .leaflet-tooltip-left:before, .leaflet-tooltip-top:before, .leaflet-tooltip-bottom:before, .leaflet-popup-tip-container {
             display: none !important;
         }
         
@@ -69,15 +69,12 @@
         <div class="clock-row"><span>LOCAL_T:</span> <span id="local-clock">00:00:00</span></div>
     </div>
     <select id="group-select" onchange="loadData(this.value)">
+        <option value="PT_ONLY">SRC: Portugal Constellation</option>
         <option value="data.tle">LOCAL: data.tle</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle">SRC: Stations</option>
-        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle">SRC: Weather Stations</option>
-        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=resource&FORMAT=tle">SRC: Earth Resources</option>
-        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=sarsat&FORMAT=tle">SRC: Search & Rescue (SARSAT)</option>
-        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=galileo&FORMAT=tle">SRC: Galileo</option>
-        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle">SRC: GPS</option>
-        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle">SRC: Starlink</option>
+        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle">SRC: All Active</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=military&FORMAT=tle">SRC: Military</option>
+        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle">SRC: Starlink</option>
     </select>
     <input type="text" id="search-bar" placeholder="FILTER SENSORS..." onkeyup="filterList()">
     <div class="btn-group">
@@ -99,9 +96,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.0.0/satellite.min.js"></script>
 
 <script>
-    const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: false }).setView([20, 0], 2);
+    const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: false }).setView([38, -9], 4);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
+    // --- RESTAURAÇÃO COMPLETA DAS BASES ---
     const groundStations = [
         { n: "ESTRACK Santa Maria", c: [36.99, -25.13], type: "dsn", spec: "15m Dish" },
         { n: "ESTRACK Kiruna", c: [67.85, 20.96], type: "dsn", spec: "Dual 15m/13m" },
@@ -139,20 +137,35 @@
      .bindPopup(`<span class="pop-title">Sensor Site</span>Local: Oeiras, PT<br>Status: <span style="color:#00ff00;">OPERATIONAL</span>`)
      .addTo(map);
 
+    // --- LÓGICA DE SATÉLITES ---
     let satellites = [];
     const satIcon = L.divIcon({ className: 'sat-icon-minimal', html: '<div class="sat-ring"></div>', iconSize: [12, 12] });
+    const ptSatIds = ["59112", "59111", "57169", "22823", "37606", "39177", "40665"];
 
     async function loadData(url) {
-        satellites.forEach(s => { 
-            map.removeLayer(s.marker); map.removeLayer(s.trail);
-            if(s.circle) map.removeLayer(s.circle);
-        });
+        satellites.forEach(s => { map.removeLayer(s.marker); map.removeLayer(s.trail); if(s.circle) map.removeLayer(s.circle); });
         satellites = [];
+        let data = "";
         try {
-            const resp = await fetch(url);
-            const data = await resp.text();
+            if(url === "PT_ONLY") {
+                const resp = await fetch('https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle');
+                data = filterPtSats(await resp.text());
+            } else {
+                const resp = await fetch(url);
+                data = await resp.text();
+            }
             parseTLE(data);
-        } catch (e) { document.getElementById('sat-list').innerText = "STREAM_ERR"; }
+        } catch (e) { document.getElementById('sat-list').innerText = "FETCH_ERROR"; }
+    }
+
+    function filterPtSats(fullData) {
+        const lines = fullData.split('\n');
+        let filtered = "";
+        for(let i=0; i<lines.length-2; i+=3) {
+            const id = lines[i+1].substring(2, 7).trim();
+            if(ptSatIds.includes(id)) filtered += lines[i] + "\n" + lines[i+1] + "\n" + lines[i+2] + "\n";
+        }
+        return filtered;
     }
 
     function getSatState(sat) {
@@ -161,15 +174,8 @@
         const pv = satellite.propagate(sat.satrec, now);
         if (pv.position && pv.velocity) {
             const gd = satellite.eciToGeodetic(pv.position, gmst);
-            const speed = Math.sqrt(Math.pow(pv.velocity.x,2)+Math.pow(pv.velocity.y,2)+Math.pow(pv.velocity.z,2));
             const radius = 6371 * Math.acos(6371 / (6371 + gd.height)) * 1000;
-            return {
-                lat: satellite.degreesLat(gd.latitude),
-                lng: satellite.degreesLong(gd.longitude),
-                alt: gd.height,
-                vel: speed,
-                rad: radius
-            };
+            return { lat: satellite.degreesLat(gd.latitude), lng: satellite.degreesLong(gd.longitude), alt: gd.height, vel: Math.sqrt(Math.pow(pv.velocity.x,2)+Math.pow(pv.velocity.y,2)+Math.pow(pv.velocity.z,2)), rad: radius };
         }
         return null;
     }
@@ -182,24 +188,20 @@
             const name = lines[i].trim();
             const satrec = satellite.twoline2satrec(lines[i+1], lines[i+2]);
             if (!satrec) continue;
-
             const noradId = lines[i+1].substring(2, 7).trim();
 
-            const marker = L.marker([0, 0], { icon: satIcon })
-                .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label', offset: [5, 0] });
-
+            const marker = L.marker([0, 0], { icon: satIcon }).bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label', offset: [5, 0] });
             const trail = L.polyline([], { color: '#00f2ff', weight: 1, opacity: 0.3 });
             const circle = L.circle([0, 0], { radius: 0, color: '#00f2ff', weight: 1, fillOpacity: 0.05, interactive: false });
 
             const satObj = { name, noradId, satrec, marker, trail, circle, active: false };
-
             marker.on('click', () => {
                 const s = getSatState(satObj);
                 if(s) {
                     marker.bindPopup(`
                         <span class="pop-title">${satObj.name}</span>
                         NORAD ID: <span class="pop-val">${satObj.noradId}</span><br>
-                        STATUS: <span class="pop-val">OPERATIONAL</span><br>
+                        STATUS: <span class="pop-val">${s.alt > 100 ? 'OPERATIONAL' : 'DECAY_WARNING'}</span><br>
                         ALTITUDE: <span class="pop-val">${s.alt.toFixed(1)} KM</span><br>
                         VELOCIDADE: <span class="pop-val">${s.vel.toFixed(2)} KM/S</span><br>
                         COORD: ${s.lat.toFixed(3)}°, ${s.lng.toFixed(3)}°
@@ -208,15 +210,10 @@
             });
 
             satellites.push(satObj);
-
             const div = document.createElement('div');
             div.className = 'sat-item';
             div.innerHTML = `<input type="checkbox"> <span>${name}</span>`;
-            div.onclick = (e) => {
-                const cb = div.querySelector('input');
-                if(e.target !== cb) cb.checked = !cb.checked;
-                toggleSat(satObj, cb.checked);
-            };
+            div.onclick = (e) => { const cb = div.querySelector('input'); if(e.target !== cb) cb.checked = !cb.checked; toggleSat(satObj, cb.checked); };
             listDiv.appendChild(div);
         }
     }
@@ -236,23 +233,21 @@
                 sat.marker.setLatLng([s.lat, s.lng]);
                 sat.circle.setLatLng([s.lat, s.lng]);
                 sat.circle.setRadius(s.rad);
-
                 if (sat.marker.isPopupOpen()) {
                     sat.marker.setPopupContent(`
                         <span class="pop-title">${sat.name}</span>
                         NORAD ID: <span class="pop-val">${sat.noradId}</span><br>
-                        STATUS: <span class="pop-val">OPERATIONAL</span><br>
+                        STATUS: <span class="pop-val">${s.alt > 100 ? 'OPERATIONAL' : 'DECAY_WARNING'}</span><br>
                         ALTITUDE: <span class="pop-val">${s.alt.toFixed(1)} KM</span><br>
                         VELOCIDADE: <span class="pop-val">${s.vel.toFixed(2)} KM/S</span><br>
                         COORD: ${s.lat.toFixed(3)}°, ${s.lng.toFixed(3)}°
                     `);
                 }
-
                 let pts = [];
-                for(let j=0; j<12; j++) {
+                for(let j=0; j<12; j++){
                     const oldT = new Date(now.getTime() - (j * 40000));
                     const pv = satellite.propagate(sat.satrec, oldT);
-                    if(pv.position) {
+                    if(pv.position){
                         const og = satellite.eciToGeodetic(pv.position, satellite.gstime(oldT));
                         pts.push([satellite.degreesLat(og.latitude), satellite.degreesLong(og.longitude)]);
                     }
@@ -274,7 +269,7 @@
         document.querySelectorAll('.sat-item input').forEach((cb, i) => { cb.checked = val; toggleSat(satellites[i], val); });
     }
 
-    loadData('data.tle');
+    loadData('PT_ONLY');
     update();
 </script>
 </body>
