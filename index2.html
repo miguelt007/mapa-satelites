@@ -3,20 +3,20 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNC - Global Mission Control v7.1</title>
+    <title>SNC - Global Mission Control v7.3</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #020408; font-family: 'Courier New', monospace; overflow: hidden; color: #00f2ff; }
         #map { height: 100vh; width: 100%; background: #020408; }
-        #hud { position: absolute; top: 15px; left: 15px; z-index: 1000; background: rgba(2, 4, 8, 0.95); border: 1px solid #00f2ff; padding: 15px; width: 320px; border-radius: 2px; }
+        #hud { position: absolute; top: 15px; left: 15px; z-index: 1000; background: rgba(2, 4, 8, 0.95); border: 1px solid #00f2ff; padding: 15px; width: 320px; border-radius: 2px; box-shadow: 0 0 20px rgba(0, 242, 255, 0.2); }
         .status-bar { border-bottom: 1px solid rgba(0, 242, 255, 0.3); padding-bottom: 8px; margin-bottom: 10px; font-size: 11px; }
         .clock-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
         .btn-group { display: flex; gap: 5px; margin-top: 8px; }
-        button { flex: 1; background: transparent; border: 1px solid #00f2ff; color: #00f2ff; font-family: 'Courier New'; font-size: 10px; padding: 6px; cursor: pointer; text-transform: uppercase; }
+        button { flex: 1; background: transparent; border: 1px solid #00f2ff; color: #00f2ff; font-family: 'Courier New'; font-size: 10px; padding: 6px; cursor: pointer; text-transform: uppercase; outline: none; }
         button:hover { background: #00f2ff; color: #000; }
         select, input { width: 100%; background: #000; border: 1px solid rgba(0, 242, 255, 0.5); color: #00f2ff; padding: 6px; font-family: 'Courier New'; margin-top: 5px; box-sizing: border-box; outline: none; }
-        #sat-list { max-height: 250px; overflow-y: auto; margin-top: 10px; border-top: 1px solid rgba(0, 242, 255, 0.2); }
-        .sat-item { display: grid; grid-template-columns: 30px 1fr; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(0, 242, 255, 0.1); cursor: pointer; }
+        #sat-list { max-height: 250px; overflow-y: auto; margin-top: 10px; border-top: 1px solid rgba(0, 242, 255, 0.2); scrollbar-width: thin; scrollbar-color: #00f2ff #000; }
+        .sat-item { display: grid; grid-template-columns: 30px 1fr; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(0, 242, 255, 0.1); cursor: pointer; font-size: 11px; }
         .sat-icon-minimal { display: flex; align-items: center; justify-content: center; }
         .sat-ring { width: 10px; height: 10px; border: 2px solid #00f2ff; border-radius: 50%; box-shadow: 0 0 8px #00f2ff; }
         
@@ -48,7 +48,6 @@
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle">SRC: Stations</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=weather&FORMAT=tle">SRC: Weather</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=resource&FORMAT=tle">SRC: Earth Resources</option>
-        <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=sarsat&FORMAT=tle">SRC: Search & Rescue</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=galileo&FORMAT=tle">SRC: Galileo</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=gps-ops&FORMAT=tle">SRC: GPS</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle">SRC: Starlink</option>
@@ -78,7 +77,7 @@
     const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: false }).setView([38, -9], 4);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    // IDs Portugueses para o filtro customizado
+    // IDS PORTUGUESES (Adiciona ou Remove aqui)
     const ptSatIds = ["59112", "57169", "37606", "39177", "22823"];
 
     const groundStations = [
@@ -119,21 +118,39 @@
     const satIcon = L.divIcon({ className: 'sat-icon-minimal', html: '<div class="sat-ring"></div>', iconSize: [12, 12] });
 
     async function loadData(url) {
+        const listDiv = document.getElementById('sat-list');
+        listDiv.innerHTML = 'ANALYZING FEED...';
         satellites.forEach(s => { map.removeLayer(s.marker); map.removeLayer(s.trail); if(s.circle) map.removeLayer(s.circle); });
         satellites = [];
+
         try {
-            let fetchUrl = (url === "PT_ONLY") ? 'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle' : url;
-            let resp = await fetch(fetchUrl);
-            let data = await resp.text();
-            if(url === "PT_ONLY") data = filterPt(data);
+            let data = "";
+            if(url === "PT_ONLY") {
+                const feeds = [
+                    'https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle',
+                    'https://celestrak.org/NORAD/elements/gp.php?GROUP=cubesat&FORMAT=tle'
+                ];
+                for(let f of feeds) {
+                    let r = await fetch(f);
+                    data += await r.text();
+                }
+                data = filterPt(data);
+            } else {
+                let resp = await fetch(url);
+                data = await resp.text();
+            }
             parseTLE(data);
-        } catch (e) { document.getElementById('sat-list').innerText = "FETCH_ERR"; }
+        } catch (e) { listDiv.innerHTML = "OFFLINE OR FETCH_ERR"; }
     }
 
     function filterPt(txt) {
-        let l = txt.split('\n'), out = "";
-        for(let i=0; i<l.length-2; i+=3) {
-            if(ptSatIds.includes(l[i+1].substring(2,7).trim())) out += l[i]+"\n"+l[i+1]+"\n"+l[i+2]+"\n";
+        let lines = txt.split('\n'), out = "", found = [];
+        for(let i=0; i<lines.length-2; i+=3) {
+            let id = lines[i+1].substring(2,7).trim();
+            if(ptSatIds.includes(id) && !found.includes(id)) {
+                out += lines[i]+"\n"+lines[i+1]+"\n"+lines[i+2]+"\n";
+                found.push(id);
+            }
         }
         return out;
     }
@@ -151,6 +168,8 @@
         const lines = data.split('\n');
         const listDiv = document.getElementById('sat-list');
         listDiv.innerHTML = '';
+        if(!data.trim()) { listDiv.innerHTML = 'NO MATCHES FOUND'; return; }
+
         for (let i = 0; i < lines.length - 2; i += 3) {
             const name = lines[i].trim(), satrec = satellite.twoline2satrec(lines[i+1], lines[i+2]);
             if (!satrec) continue;
