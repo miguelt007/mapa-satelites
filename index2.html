@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNC - Global Mission Control v6.4</title>
+    <title>SNC - Global Mission Control v6.5</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #020408; font-family: 'Courier New', monospace; overflow: hidden; color: #00f2ff; }
@@ -37,10 +37,11 @@
         .sat-icon-minimal { display: flex; align-items: center; justify-content: center; }
         .sat-ring { width: 10px; height: 10px; border: 2px solid #00f2ff; border-radius: 50%; box-shadow: 0 0 8px #00f2ff; }
         
+        /* Tooltip limpo sem setas ou prefixos */
         .sat-label { 
             color: #00f2ff !important; font-size: 10px !important; background: none !important; 
             border: none !important; box-shadow: none !important; text-shadow: 1px 1px 2px #000; 
-            margin-left: 10px; padding: 0 !important;
+            margin-left: 8px; padding: 0 !important; font-weight: bold;
         }
 
         .icon-base { border: 1px solid #ff4e00; background: rgba(255, 78, 0, 0.3); box-shadow: 0 0 5px #ff4e00; }
@@ -97,7 +98,6 @@
     const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: false }).setView([20, 0], 2);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    // --- INFRAESTRUTURA ---
     const groundStations = [
         { n: "ESTRACK Santa Maria", c: [36.99, -25.13], type: "dsn", spec: "15m Dish" },
         { n: "ESTRACK Kiruna", c: [67.85, 20.96], type: "dsn", spec: "Dual 15m/13m" },
@@ -135,7 +135,6 @@
      .bindPopup(`<span class="pop-title">Sensor Site</span>Local: Oeiras, PT<br>Status: <span style="color:#00ff00;">OPERATIONAL</span>`)
      .addTo(map);
 
-    // --- ENGINE SAT ---
     let satellites = [];
     const satIcon = L.divIcon({ className: 'sat-icon-minimal', html: '<div class="sat-ring"></div>', iconSize: [12, 12] });
 
@@ -150,21 +149,17 @@
             const resp = await fetch(url);
             const data = await resp.text();
             parseTLE(data);
-        } catch (e) { document.getElementById('sat-list').innerText = "LOAD_ERR"; }
+        } catch (e) { document.getElementById('sat-list').innerText = "STREAM_ERROR"; }
     }
 
-    function getSatData(sat) {
+    function getSatState(sat) {
         const now = new Date();
         const gmst = satellite.gstime(now);
         const pv = satellite.propagate(sat.satrec, now);
         if (pv.position && pv.velocity) {
             const gd = satellite.eciToGeodetic(pv.position, gmst);
             const speed = Math.sqrt(Math.pow(pv.velocity.x,2)+Math.pow(pv.velocity.y,2)+Math.pow(pv.velocity.z,2));
-            
-            // Cálculo do Footprint (Raio de Visibilidade)
-            const R = 6371; // Raio da Terra
-            const radius = R * Math.acos(R / (R + gd.height)) * 1000; // em metros
-
+            const radius = 6371 * Math.acos(6371 / (6371 + gd.height)) * 1000;
             return {
                 lat: satellite.degreesLat(gd.latitude),
                 lng: satellite.degreesLong(gd.longitude),
@@ -193,15 +188,15 @@
 
             const satObj = { name, satrec, marker, trail, circle, active: false };
 
-            marker.on('click', (e) => {
-                const d = getSatData(satObj);
-                if(d) {
+            marker.on('click', () => {
+                const s = getSatState(satObj);
+                if(s) {
                     marker.bindPopup(`
                         <span class="pop-title">${satObj.name}</span>
                         STATUS: <span class="pop-val">OPERATIONAL</span><br>
-                        ALTITUDE: <span class="pop-val">${d.alt.toFixed(1)} KM</span><br>
-                        VELOCIDADE: <span class="pop-val">${d.vel.toFixed(2)} KM/S</span><br>
-                        COORD: ${d.lat.toFixed(3)}°, ${d.lng.toFixed(3)}°
+                        ALTITUDE: <span class="pop-val">${s.alt.toFixed(1)} KM</span><br>
+                        VELOCIDADE: <span class="pop-val">${s.vel.toFixed(2)} KM/S</span><br>
+                        COORD: ${s.lat.toFixed(3)}°, ${s.lng.toFixed(3)}°
                     `).openPopup();
                 }
             });
@@ -222,41 +217,33 @@
 
     function toggleSat(sat, show) {
         sat.active = show;
-        if (show) { 
-            sat.marker.addTo(map); 
-            sat.trail.addTo(map); 
-            sat.circle.addTo(map);
-        } else { 
-            map.removeLayer(sat.marker); 
-            map.removeLayer(sat.trail); 
-            map.removeLayer(sat.circle);
-        }
+        if (show) { sat.marker.addTo(map); sat.trail.addTo(map); sat.circle.addTo(map); }
+        else { map.removeLayer(sat.marker); map.removeLayer(sat.trail); map.removeLayer(sat.circle); }
     }
 
     function update() {
         const now = new Date();
         satellites.forEach(sat => {
             if (!sat.active) return;
-            const d = getSatData(sat);
-            if (d) {
-                sat.marker.setLatLng([d.lat, d.lng]);
-                sat.circle.setLatLng([d.lat, d.lng]);
-                sat.circle.setRadius(d.rad);
+            const s = getSatState(sat);
+            if (s) {
+                sat.marker.setLatLng([s.lat, s.lng]);
+                sat.circle.setLatLng([s.lat, s.lng]);
+                sat.circle.setRadius(s.rad);
 
                 if (sat.marker.isPopupOpen()) {
                     sat.marker.setPopupContent(`
                         <span class="pop-title">${sat.name}</span>
                         STATUS: <span class="pop-val">OPERATIONAL</span><br>
-                        ALTITUDE: <span class="pop-val">${d.alt.toFixed(1)} KM</span><br>
-                        VELOCIDADE: <span class="pop-val">${d.vel.toFixed(2)} KM/S</span><br>
-                        COORD: ${d.lat.toFixed(3)}°, ${d.lng.toFixed(3)}°
+                        ALTITUDE: <span class="pop-val">${s.alt.toFixed(1)} KM</span><br>
+                        VELOCIDADE: <span class="pop-val">${s.vel.toFixed(2)} KM/S</span><br>
+                        COORD: ${s.lat.toFixed(3)}°, ${s.lng.toFixed(3)}°
                     `);
                 }
 
-                // Trail
                 let pts = [];
-                for(let j=0; j<15; j++) {
-                    const oldT = new Date(now.getTime() - (j * 45000));
+                for(let j=0; j<12; j++) {
+                    const oldT = new Date(now.getTime() - (j * 40000));
                     const pv = satellite.propagate(sat.satrec, oldT);
                     if(pv.position) {
                         const og = satellite.eciToGeodetic(pv.position, satellite.gstime(oldT));
