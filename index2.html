@@ -50,8 +50,6 @@
             border: none !important; box-shadow: none !important; text-shadow: 1px 1px 2px #000; 
             margin-left: 10px; padding: 0 !important;
         }
-        
-        /* Remove a seta branca chata do tooltip */
         .leaflet-tooltip-right:before, .leaflet-tooltip-left:before { display: none !important; }
 
         /* INFRAESTRUTURA */
@@ -60,7 +58,7 @@
         .icon-special-sq { border: 1px solid #ffea00; background: rgba(255, 234, 0, 0.3); box-shadow: 0 0 5px #ffea00; }
 
         /* POPUPS */
-        .leaflet-popup-content-wrapper { background: #000 !important; border: 1px solid #00f2ff; border-radius: 0; color: #fff; font-size: 11px; font-family: 'Courier New'; }
+        .leaflet-popup-content-wrapper { background: #000 !important; border: 1px solid #00f2ff !border-radius: 0; color: #fff; font-size: 11px; font-family: 'Courier New'; }
         .pop-title { color: #00f2ff; font-weight: bold; border-bottom: 1px solid #00f2ff; margin-bottom: 6px; display: block; text-transform: uppercase; }
         .pop-val { color: #39ff14; }
 
@@ -115,7 +113,6 @@
     const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: false }).setView([20, 0], 2);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    // --- MARCADORES DE INFRAESTRUTURA COMPLETA ---
     const customCoords = [38.6944381, -9.3089739];
     L.marker(customCoords, { icon: L.divIcon({ className: 'icon-special-sq', iconSize: [7, 7] }) })
      .bindPopup(`<span class="pop-title" style="color:#00ffff; border-bottom-color:#4cf85b;">Sensor Site</span><b>Local:</b> Oeiras, Portugal<br><b>Status:</b> <span style="color:#00ff00;">OPERATIONAL</span>`)
@@ -181,18 +178,17 @@
             if (!satrec) continue;
 
             const marker = L.marker([0, 0], { icon: satIcon })
-                .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label' })
-                .bindPopup("SYNCING..."); 
+                .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label' });
 
             const trails = [L.polyline([], { color: '#00f2ff', weight: 1, opacity: 0.5, dashArray: '2, 5', interactive: false })];
             const footprint = L.circle([0, 0], { radius: 0, color: '#00f2ff', weight: 1, fillColor: '#00f2ff', fillOpacity: 0.05, interactive: false });
 
             const satObj = { name, satrec, marker, trails, footprint, active: false };
             
-            // CORREÇÃO: Calcula dados ANTES de abrir o popup para evitar o Fetching_data
+            // CORREÇÃO DEFINITIVA: Vincula o popup apenas com o conteúdo já calculado
             marker.on('click', () => {
-                updateSatPopup(satObj);
-                marker.openPopup();
+                const content = calculatePopupHTML(satObj);
+                marker.bindPopup(content).openPopup();
             });
 
             satellites.push(satObj);
@@ -207,7 +203,8 @@
         }
     }
 
-    function updateSatPopup(sat) {
+    // Função separada para gerar o HTML sem delays
+    function calculatePopupHTML(sat) {
         const now = new Date();
         const gmst = satellite.gstime(now);
         const pv = satellite.propagate(sat.satrec, now);
@@ -215,8 +212,6 @@
         if (pv.position && pv.velocity) {
             const gd = satellite.eciToGeodetic(pv.position, gmst);
             const noradId = sat.satrec.satnum;
-            
-            // Lógica de Saúde Baseada em Idade
             const line1 = sat.satrec.line1; 
             const launchYearShort = parseInt(line1.substring(9, 11));
             const fullYear = launchYearShort > 50 ? 1900 + launchYearShort : 2000 + launchYearShort;
@@ -229,22 +224,18 @@
 
             const speedKms = Math.sqrt(Math.pow(pv.velocity.x, 2) + Math.pow(pv.velocity.y, 2) + Math.pow(pv.velocity.z, 2));
 
-            sat.marker.setPopupContent(`
+            return `
                 <span class="pop-title">${sat.name}</span>
                 NORAD ID: <span class="pop-val">${noradId}</span><br>
                 STATUS: <span style="color:${healthColor}; font-weight:bold;">${health}</span><br>
-                LANÇAMENTO: <span class="pop-val">${fullYear}</span> (${age} anos)<br>
+                LANÇAMENTO: <span class="pop-val">${fullYear}</span> (${age}a)<br>
                 <hr style="border:0; border-top:1px solid rgba(0,242,255,0.2); margin:5px 0;">
                 ALTITUDE: <span class="pop-val">${gd.height.toFixed(1)} KM</span><br>
                 VELOCIDADE: <span class="pop-val">${speedKms.toFixed(2)} KM/S</span><br>
                 LAT/LNG: ${satellite.degreesLat(gd.latitude).toFixed(3)}°, ${satellite.degreesLong(gd.longitude).toFixed(3)}°
-            `);
-            
-            // Re-centra o popup se estiver aberto
-            if (sat.marker.getPopup() && sat.marker.isPopupOpen()) {
-                sat.marker.getPopup().update();
-            }
+            `;
         }
+        return "DATA_LOST";
     }
 
     function toggleSat(sat, show) {
@@ -285,8 +276,10 @@
                 sat.footprint.setLatLng([lat, lng]);
                 sat.footprint.setRadius(R_EARTH * horizonAngle * 1000);
 
-                // Mantém o popup atualizado se estiver aberto
-                if (sat.marker.isPopupOpen()) updateSatPopup(sat);
+                // Atualiza o conteúdo em tempo real se o popup estiver aberto
+                if (sat.marker.isPopupOpen()) {
+                    sat.marker.setPopupContent(calculatePopupHTML(sat));
+                }
                 
                 let pts = [];
                 for(let i=0; i<8; i++){
