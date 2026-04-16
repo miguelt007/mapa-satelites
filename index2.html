@@ -140,7 +140,7 @@
 
     let satellites = [];
     const satIcon = L.divIcon({ className: 'sat-icon-minimal', html: '<div class="sat-ring"></div>', iconSize: [12, 12] });
-    const ptSatIds = ["59112", "57169", "37606", "39177", "22823", "00000", "00000"];
+    const ptSatIds = ["59112", "57169", "37606", "39177", "22823"];
 
     async function loadData(url) {
         satellites.forEach(s => { map.removeLayer(s.marker); map.removeLayer(s.trail); if(s.circle) map.removeLayer(s.circle); });
