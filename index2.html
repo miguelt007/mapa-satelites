@@ -3,13 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNC - Global Mission Control v5.6</title>
+    <title>SNC - Global Mission Control v5.7</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #020408; font-family: 'Courier New', monospace; overflow: hidden; color: #00f2ff; }
         #map { height: 100vh; width: 100%; background: #020408; }
 
-        /* HUD PAINEL */
         #hud {
             position: absolute; top: 15px; left: 15px; z-index: 1000;
             background: rgba(2, 4, 8, 0.95); border: 1px solid #00f2ff;
@@ -19,7 +18,6 @@
 
         .status-bar { border-bottom: 1px solid rgba(0, 242, 255, 0.3); padding-bottom: 8px; margin-bottom: 10px; font-size: 11px; }
         .clock-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
-        .clock-label { color: rgba(0, 242, 255, 0.6); }
 
         .btn-group { display: flex; gap: 5px; margin-top: 8px; }
         button {
@@ -33,12 +31,8 @@
             color: #00f2ff; padding: 6px; font-family: 'Courier New'; margin-top: 5px; box-sizing: border-box; outline: none;
         }
 
-        #sat-list { 
-            max-height: 250px; overflow-y: auto; margin-top: 10px; border-top: 1px solid rgba(0, 242, 255, 0.2);
-            scrollbar-width: thin; scrollbar-color: #00f2ff #000;
-        }
+        #sat-list { max-height: 250px; overflow-y: auto; margin-top: 10px; border-top: 1px solid rgba(0, 242, 255, 0.2); }
         .sat-item { display: grid; grid-template-columns: 30px 1fr; align-items: center; padding: 6px 0; border-bottom: 1px solid rgba(0, 242, 255, 0.1); cursor: pointer; }
-        .sat-item span { font-size: 11px; color: #888; }
 
         /* ICONS */
         .sat-icon-minimal { display: flex; align-items: center; justify-content: center; }
@@ -56,8 +50,7 @@
         .icon-special-sq { border: 1px solid #ffea00; background: rgba(255, 234, 0, 0.3); box-shadow: 0 0 5px #ffea00; }
 
         /* POPUPS */
-        .leaflet-popup-content-wrapper { background: #000 !important; border: 1px solid #00f2ff; border-radius: 0; color: #fff; font-size: 11px; font-family: 'Courier New'; }
-        .leaflet-popup-tip { background: #00f2ff !important; }
+        .leaflet-popup-content-wrapper { background: #000 !important; border: 1px solid #00f2ff; border-radius: 0; color: #fff; font-size: 11px; }
         .pop-title { color: #00f2ff; font-weight: bold; border-bottom: 1px solid #00f2ff; margin-bottom: 6px; display: block; text-transform: uppercase; }
         .pop-val { color: #39ff14; }
 
@@ -70,8 +63,8 @@
 
 <div id="hud">
     <div class="status-bar">
-        <div class="clock-row"><span class="clock-label">UTC_REF:</span> <span id="utc-clock">00:00:00</span></div>
-        <div class="clock-row"><span class="clock-label">LOC_REF:</span> <span id="local-clock">00:00:00</span></div>
+        <div class="clock-row"><span>UTC_REF:</span> <span id="utc-clock">00:00:00</span></div>
+        <div class="clock-row"><span>LOC_REF:</span> <span id="local-clock">00:00:00</span></div>
     </div>
     <select id="group-select" onchange="loadData(this.value)">
         <option value="data.tle">LOCAL: data.tle</option>
@@ -79,7 +72,7 @@
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=starlink&FORMAT=tle">SRC: Starlink</option>
         <option value="https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle">SRC: All Active</option>
     </select>
-    <input type="text" id="search-bar" placeholder="FILTER SENSORS..." onkeyup="filterList()">
+    <input type="text" id="search-bar" placeholder="FILTER..." onkeyup="filterList()">
     <div class="btn-group">
         <button onclick="checkAll(true)">SELECT ALL</button>
         <button onclick="checkAll(false)">CLEAR</button>
@@ -102,7 +95,7 @@
     const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: false }).setView([20, 0], 2);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    // --- TODAS AS BASES RESTAURADAS (23 LOCALIZAÇÕES) ---
+    // --- REPOSIÇÃO DAS 23 BASES ---
     const groundStations = [
         { n: "ESTRACK Santa Maria", c: [36.99, -25.13], t: "Portugal (Açores)", type: "dsn", spec: "15m Dish", func: "Ariane/Vega Tracking" },
         { n: "ESTRACK Kiruna", c: [67.85, 20.96], t: "Sweden", type: "dsn", spec: "Dual 15m/13m", func: "LEO Control" },
@@ -136,13 +129,12 @@
          .addTo(map);
     });
 
-    // --- BASE ESPECIAL OEIRAS ---
     const customCoords = [38.6944381, -9.3089739];
     L.marker(customCoords, { icon: L.divIcon({ className: 'icon-special-sq', iconSize: [7, 7] }) })
-     .bindPopup(`<span class="pop-title" style="color:#00ffff; border-bottom-color:#4cf85b;">Sensor Site</span><b>Local:</b> Oeiras, Portugal<br><b>Status:</b> <span style="color:#00ff00;">OPERATIONAL</span>`)
+     .bindPopup(`<span class="pop-title">Sensor Site</span><b>Local:</b> Oeiras, Portugal<br><b>Status:</b> <span style="color:#00ff00;">OPERATIONAL</span>`)
      .addTo(map);
 
-    // --- LÓGICA DE SATÉLITES ---
+    // --- SATELLITE ENGINE ---
     let satellites = [];
     const satIcon = L.divIcon({ className: 'sat-icon-minimal', html: '<div class="sat-ring"></div>', iconSize: [12, 12] });
 
@@ -153,23 +145,32 @@
             const resp = await fetch(url);
             const data = await resp.text();
             parseTLE(data);
-        } catch (e) { document.getElementById('sat-list').innerText = "ERRO TLE_STREAM"; }
+        } catch (e) { document.getElementById('sat-list').innerText = "FETCH_ERROR"; }
     }
 
-    function getSatHTML(sat) {
+    function getSatFullHTML(sat) {
         const now = new Date();
         const gmst = satellite.gstime(now);
         const pv = satellite.propagate(sat.satrec, now);
-        if (pv.position) {
+        if (pv.position && pv.velocity) {
             const gd = satellite.eciToGeodetic(pv.position, gmst);
+            const noradId = sat.satrec.satnum;
+            const l1 = sat.satrec.line1;
+            const yShort = parseInt(l1.substring(9, 11));
+            const fullY = yShort > 50 ? 1900 + yShort : 2000 + yShort;
+            const age = new Date().getFullYear() - fullY;
+            const health = age > 25 ? "DEBRIS" : "OPERATIONAL";
             const speed = Math.sqrt(Math.pow(pv.velocity.x,2)+Math.pow(pv.velocity.y,2)+Math.pow(pv.velocity.z,2));
+
             return `<span class="pop-title">${sat.name}</span>
-                    ALTITUDE: <span class="pop-val">${gd.height.toFixed(1)} km</span><br>
-                    VELOCIDADE: <span class="pop-val">${speed.toFixed(2)} km/s</span><br>
-                    LAT: ${satellite.degreesLat(gd.latitude).toFixed(3)}°<br>
-                    LNG: ${satellite.degreesLong(gd.longitude).toFixed(3)}°`;
+                ID: <span class="pop-val">${noradId}</span> | STATUS: ${health}<br>
+                LANÇAMENTO: <span class="pop-val">${fullY}</span> (${age}a)<br>
+                <hr style="border:0; border-top:1px solid #444; margin:5px 0;">
+                ALTITUDE: <span class="pop-val">${gd.height.toFixed(1)} km</span><br>
+                VELOCIDADE: <span class="pop-val">${speed.toFixed(2)} km/s</span><br>
+                LAT/LNG: ${satellite.degreesLat(gd.latitude).toFixed(3)}°, ${satellite.degreesLong(gd.longitude).toFixed(3)}°`;
         }
-        return "SYNC_LOST";
+        return "DATA_LOST";
     }
 
     function parseTLE(data) {
@@ -183,13 +184,13 @@
 
             const marker = L.marker([0, 0], { icon: satIcon })
                 .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label' })
-                .bindPopup("FETCHING...");
+                .bindPopup("INIT...");
 
-            const satObj = { name, satrec, marker, trails: [L.polyline([], { color: '#00f2ff', weight: 1, opacity: 0.3 })], active: false };
+            // Adição da Trail (Cauda)
+            const trail = L.polyline([], { color: '#00f2ff', weight: 1, opacity: 0.4 });
+            const satObj = { name, satrec, marker, trails: [trail], active: false };
 
-            marker.on('mousedown', function() {
-                this.setPopupContent(getSatHTML(satObj));
-            });
+            marker.on('mousedown', () => marker.setPopupContent(getSatFullHTML(satObj)));
 
             satellites.push(satObj);
 
@@ -222,30 +223,37 @@
                 const lat = satellite.degreesLat(gd.latitude);
                 const lng = satellite.degreesLong(gd.longitude);
                 sat.marker.setLatLng([lat, lng]);
-                if (sat.marker.isPopupOpen()) sat.marker.setPopupContent(getSatHTML(sat));
+
+                // Atualiza popup em tempo real se aberto
+                if (sat.marker.isPopupOpen()) sat.marker.setPopupContent(getSatFullHTML(sat));
+
+                // Atualiza Trail (Cauda)
+                let pts = [];
+                for(let j=0; j<10; j++) {
+                    const oldT = new Date(now.getTime() - (j * 30000));
+                    const oldP = satellite.propagate(sat.satrec, oldT);
+                    if(oldP.position) {
+                        const og = satellite.eciToGeodetic(oldP.position, satellite.gstime(oldT));
+                        pts.push([satellite.degreesLat(og.latitude), satellite.degreesLong(og.longitude)]);
+                    }
+                }
+                sat.trails[0].setLatLngs(pts);
             }
         });
         document.getElementById('utc-clock').innerText = now.toISOString().substr(11, 8);
+        document.getElementById('local-clock').innerText = new Date().toLocaleTimeString();
         requestAnimationFrame(update);
     }
 
     function filterList() {
         const q = document.getElementById('search-bar').value.toUpperCase();
-        document.querySelectorAll('.sat-item').forEach(el => {
-            el.style.display = el.innerText.toUpperCase().includes(q) ? 'grid' : 'none';
-        });
+        document.querySelectorAll('.sat-item').forEach(el => el.style.display = el.innerText.toUpperCase().includes(q) ? 'grid' : 'none');
     }
 
     function checkAll(val) {
-        document.querySelectorAll('.sat-item input').forEach((cb, i) => {
-            cb.checked = val;
-            toggleSat(satellites[i], val);
-        });
+        document.querySelectorAll('.sat-item input').forEach((cb, i) => { cb.checked = val; toggleSat(satellites[i], val); });
     }
 
-    setInterval(() => { document.getElementById('local-clock').innerText = new Date().toLocaleTimeString(); }, 1000);
-    
-    // Início automático com a ISS
     loadData('https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle');
     update();
 </script>
