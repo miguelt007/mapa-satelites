@@ -211,13 +211,27 @@
         const now = new Date();
         const gmst = satellite.gstime(now);
         const pv = satellite.propagate(sat.satrec, now);
-        if (pv.position) {
+        
+        if (pv.position && pv.velocity) {
             const gd = satellite.eciToGeodetic(pv.position, gmst);
+            
+            // CÁLCULO DA VELOCIDADE
+            // A velocidade vem em km/s nos vetores x, y, z. Usamos Pitágoras 3D:
+            const speedKms = Math.sqrt(
+                Math.pow(pv.velocity.x, 2) + 
+                Math.pow(pv.velocity.y, 2) + 
+                Math.pow(pv.velocity.z, 2)
+            );
+            const speedKmh = speedKms * 3600;
+
             sat.marker.setPopupContent(`
                 <span class="pop-title">${sat.name}</span>
                 ALTITUDE: <span class="pop-val">${gd.height.toFixed(1)} KM</span><br>
-                LAT: ${satellite.degreesLat(gd.latitude).toFixed(3)}<br>
-                LNG: ${satellite.degreesLong(gd.longitude).toFixed(3)}
+                VELOCIDADE: <span class="pop-val">${speedKms.toFixed(2)} KM/S</span><br>
+                <span style="font-size:9px; color:#888;">(${speedKmh.toLocaleString('pt-PT', {maximumFractionDigits:0})} KM/H)</span><br>
+                <hr style="border:0; border-top:1px solid rgba(0,242,255,0.2); margin:5px 0;">
+                LAT: ${satellite.degreesLat(gd.latitude).toFixed(3)}°<br>
+                LNG: ${satellite.degreesLong(gd.longitude).toFixed(3)}°
             `);
         }
     }
