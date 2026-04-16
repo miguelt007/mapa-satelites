@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SNC - Global Mission Control v6.3</title>
+    <title>SNC - Global Mission Control v6.4</title>
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         body, html { margin: 0; padding: 0; height: 100%; background: #020408; font-family: 'Courier New', monospace; overflow: hidden; color: #00f2ff; }
@@ -97,6 +97,7 @@
     const map = L.map('map', { worldCopyJump: true, zoomControl: false, attributionControl: false }).setView([20, 0], 2);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png').addTo(map);
 
+    // --- INFRAESTRUTURA ---
     const groundStations = [
         { n: "ESTRACK Santa Maria", c: [36.99, -25.13], type: "dsn", spec: "15m Dish" },
         { n: "ESTRACK Kiruna", c: [67.85, 20.96], type: "dsn", spec: "Dual 15m/13m" },
@@ -134,35 +135,45 @@
      .bindPopup(`<span class="pop-title">Sensor Site</span>Local: Oeiras, PT<br>Status: <span style="color:#00ff00;">OPERATIONAL</span>`)
      .addTo(map);
 
+    // --- ENGINE SAT ---
     let satellites = [];
     const satIcon = L.divIcon({ className: 'sat-icon-minimal', html: '<div class="sat-ring"></div>', iconSize: [12, 12] });
 
     async function loadData(url) {
-        satellites.forEach(s => { map.removeLayer(s.marker); s.trails.forEach(t => map.removeLayer(t)); });
+        satellites.forEach(s => { 
+            map.removeLayer(s.marker); 
+            map.removeLayer(s.trail);
+            if(s.circle) map.removeLayer(s.circle);
+        });
         satellites = [];
         try {
             const resp = await fetch(url);
             const data = await resp.text();
             parseTLE(data);
-        } catch (e) { document.getElementById('sat-list').innerText = "LOAD_ERR: " + url; }
+        } catch (e) { document.getElementById('sat-list').innerText = "LOAD_ERR"; }
     }
 
-    function getSatHTML(sat) {
+    function getSatData(sat) {
         const now = new Date();
         const gmst = satellite.gstime(now);
         const pv = satellite.propagate(sat.satrec, now);
         if (pv.position && pv.velocity) {
             const gd = satellite.eciToGeodetic(pv.position, gmst);
             const speed = Math.sqrt(Math.pow(pv.velocity.x,2)+Math.pow(pv.velocity.y,2)+Math.pow(pv.velocity.z,2));
-            const status = gd.height > 100 ? "OPERATIONAL" : "DECAY_WARNING";
+            
+            // Cálculo do Footprint (Raio de Visibilidade)
+            const R = 6371; // Raio da Terra
+            const radius = R * Math.acos(R / (R + gd.height)) * 1000; // em metros
 
-            return `<span class="pop-title">${sat.name}</span>
-                    STATUS: <span class="pop-val">${status}</span><br>
-                    ALTITUDE: <span class="pop-val">${gd.height.toFixed(1)} KM</span><br>
-                    VELOCIDADE: <span class="pop-val">${speed.toFixed(2)} KM/S</span><br>
-                    COORD: ${satellite.degreesLat(gd.latitude).toFixed(3)}°, ${satellite.degreesLong(gd.longitude).toFixed(3)}°`;
+            return {
+                lat: satellite.degreesLat(gd.latitude),
+                lng: satellite.degreesLong(gd.longitude),
+                alt: gd.height,
+                vel: speed,
+                rad: radius
+            };
         }
-        return "SIGNAL_LOST";
+        return null;
     }
 
     function parseTLE(data) {
@@ -175,13 +186,25 @@
             if (!satrec) continue;
 
             const marker = L.marker([0, 0], { icon: satIcon })
-                .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label' })
-                .bindPopup("SYNCING...");
+                .bindTooltip(name, { permanent: true, direction: 'right', className: 'sat-label' });
 
-            const trail = L.polyline([], { color: '#00f2ff', weight: 1, opacity: 0.4 });
-            const satObj = { name, satrec, marker, trails: [trail], active: false };
+            const trail = L.polyline([], { color: '#00f2ff', weight: 1, opacity: 0.3 });
+            const circle = L.circle([0, 0], { radius: 0, color: '#00f2ff', weight: 1, fillOpacity: 0.1, interactive: false });
 
-            marker.on('mousedown', () => marker.setPopupContent(getSatHTML(satObj)));
+            const satObj = { name, satrec, marker, trail, circle, active: false };
+
+            marker.on('click', (e) => {
+                const d = getSatData(satObj);
+                if(d) {
+                    marker.bindPopup(`
+                        <span class="pop-title">${satObj.name}</span>
+                        STATUS: <span class="pop-val">OPERATIONAL</span><br>
+                        ALTITUDE: <span class="pop-val">${d.alt.toFixed(1)} KM</span><br>
+                        VELOCIDADE: <span class="pop-val">${d.vel.toFixed(2)} KM/S</span><br>
+                        COORD: ${d.lat.toFixed(3)}°, ${d.lng.toFixed(3)}°
+                    `).openPopup();
+                }
+            });
 
             satellites.push(satObj);
 
@@ -199,31 +222,48 @@
 
     function toggleSat(sat, show) {
         sat.active = show;
-        if (show) { sat.marker.addTo(map); sat.trails[0].addTo(map); }
-        else { map.removeLayer(sat.marker); map.removeLayer(sat.trails[0]); }
+        if (show) { 
+            sat.marker.addTo(map); 
+            sat.trail.addTo(map); 
+            sat.circle.addTo(map);
+        } else { 
+            map.removeLayer(sat.marker); 
+            map.removeLayer(sat.trail); 
+            map.removeLayer(sat.circle);
+        }
     }
 
     function update() {
         const now = new Date();
-        const gmst = satellite.gstime(now);
         satellites.forEach(sat => {
             if (!sat.active) return;
-            const pv = satellite.propagate(sat.satrec, now);
-            if (pv.position) {
-                const gd = satellite.eciToGeodetic(pv.position, gmst);
-                sat.marker.setLatLng([satellite.degreesLat(gd.latitude), satellite.degreesLong(gd.longitude)]);
-                if (sat.marker.isPopupOpen()) sat.marker.setPopupContent(getSatHTML(sat));
+            const d = getSatData(sat);
+            if (d) {
+                sat.marker.setLatLng([d.lat, d.lng]);
+                sat.circle.setLatLng([d.lat, d.lng]);
+                sat.circle.setRadius(d.rad);
 
+                if (sat.marker.isPopupOpen()) {
+                    sat.marker.setPopupContent(`
+                        <span class="pop-title">${sat.name}</span>
+                        STATUS: <span class="pop-val">OPERATIONAL</span><br>
+                        ALTITUDE: <span class="pop-val">${d.alt.toFixed(1)} KM</span><br>
+                        VELOCIDADE: <span class="pop-val">${d.vel.toFixed(2)} KM/S</span><br>
+                        COORD: ${d.lat.toFixed(3)}°, ${d.lng.toFixed(3)}°
+                    `);
+                }
+
+                // Trail
                 let pts = [];
-                for(let j=0; j<12; j++) {
-                    const oldT = new Date(now.getTime() - (j * 40000));
-                    const oldP = satellite.propagate(sat.satrec, oldT);
-                    if(oldP.position) {
-                        const og = satellite.eciToGeodetic(oldP.position, satellite.gstime(oldT));
+                for(let j=0; j<15; j++) {
+                    const oldT = new Date(now.getTime() - (j * 45000));
+                    const pv = satellite.propagate(sat.satrec, oldT);
+                    if(pv.position) {
+                        const og = satellite.eciToGeodetic(pv.position, satellite.gstime(oldT));
                         pts.push([satellite.degreesLat(og.latitude), satellite.degreesLong(og.longitude)]);
                     }
                 }
-                sat.trails[0].setLatLngs(pts);
+                sat.trail.setLatLngs(pts);
             }
         });
         document.getElementById('utc-clock').innerText = now.toISOString().substr(11, 8);
@@ -240,7 +280,7 @@
         document.querySelectorAll('.sat-item input').forEach((cb, i) => { cb.checked = val; toggleSat(satellites[i], val); });
     }
 
-    loadData('data.tle'); // Inicia com o local por defeito
+    loadData('data.tle');
     update();
 </script>
 </body>
