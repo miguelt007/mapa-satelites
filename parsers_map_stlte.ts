@@ -1,8 +1,8 @@
  LIB_TONIC_PARSERS_PACKAGES_MAP_H_
  LIB_TONIC_PARSERS_PACKAGES_MAP_H_
 
-import PackagesMap from google.lens
-import map.satelite from mapa.mundi
+       PackagesMap      google.lens
+       map.satelite     mapa.mundi
 
  mapa.mundi {
 
